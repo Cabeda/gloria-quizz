@@ -4,43 +4,66 @@ import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useGame } from "../context/GameContext";
 import type { Player } from "../types";
 
-const TOTAL_CELLS = 31; // 0 (start) to 30 (finish)
-const COLS = 7;
+const TOTAL_CELLS = 31; // 0 (start) to 30 (finish/center)
 
-// Generate a snaking board path (left-to-right, then right-to-left, etc.)
-function generateBoardLayout(): { row: number; col: number }[] {
-  const positions: { row: number; col: number }[] = [];
-  const totalRows = Math.ceil(TOTAL_CELLS / COLS);
-  let idx = 0;
-  for (let row = totalRows - 1; row >= 0; row--) {
-    const isEvenFromBottom = (totalRows - 1 - row) % 2 === 0;
-    for (let c = 0; c < COLS && idx < TOTAL_CELLS; c++) {
-      const col = isEvenFromBottom ? c : COLS - 1 - c;
-      positions.push({ row, col });
-      idx++;
-    }
+// Special cell types for visual variety (like the Glória board)
+const SPECIAL_CELLS: Record<number, { color: string; icon: string }> = {
+  0: { color: "#e74c3c", icon: "🏁" },
+  5: { color: "#e84393", icon: "🎪" },
+  7: { color: "#3498db", icon: "🎵" },
+  10: { color: "#e84393", icon: "🌟" },
+  13: { color: "#3498db", icon: "🎨" },
+  15: { color: "#e74c3c", icon: "🎭" },
+  18: { color: "#3498db", icon: "🎸" },
+  20: { color: "#e84393", icon: "🦋" },
+  23: { color: "#3498db", icon: "🎯" },
+  25: { color: "#e74c3c", icon: "🍀" },
+  28: { color: "#e84393", icon: "🌈" },
+  30: { color: "#f1c40f", icon: "🏆" },
+};
+
+const DEFAULT_CELL_COLOR = "#dbb778"; // Golden tan like the real board
+
+/**
+ * Generate spiral positions for the board.
+ * The spiral starts at the outer bottom-right and winds inward clockwise
+ * to the center, mimicking a classic Glória board.
+ */
+function generateSpiralPositions(
+  total: number,
+  cx: number,
+  cy: number,
+  outerRadius: number,
+  innerRadius: number
+): { x: number; y: number; angle: number }[] {
+  const positions: { x: number; y: number; angle: number }[] = [];
+  // ~2.5 full turns from outside to center
+  const totalAngle = 2.5 * 2 * Math.PI;
+  for (let i = 0; i < total; i++) {
+    const t = i / (total - 1); // 0 to 1
+    const angle = -Math.PI / 2 + t * totalAngle; // start from top
+    const radius = outerRadius - t * (outerRadius - innerRadius);
+    const x = cx + radius * Math.cos(angle);
+    const y = cy + radius * Math.sin(angle);
+    positions.push({ x, y, angle });
   }
   return positions;
 }
 
-const BOARD_LAYOUT = generateBoardLayout();
+// Board dimensions
+const BOARD_SIZE = 600;
+const CENTER = BOARD_SIZE / 2;
+const OUTER_R = 270;
+const INNER_R = 30;
+const CELL_RADIUS = 22;
 
-const CELL_COLORS = [
-  "#e74c3c", "#3498db", "#2ecc71", "#f1c40f", "#e67e22",
-  "#9b59b6", "#1abc9c", "#e84393", "#e74c3c", "#3498db",
-  "#2ecc71", "#f1c40f", "#e67e22", "#9b59b6", "#1abc9c",
-  "#e84393", "#e74c3c", "#3498db", "#2ecc71", "#f1c40f",
-  "#e67e22", "#9b59b6", "#1abc9c", "#e84393", "#e74c3c",
-  "#3498db", "#2ecc71", "#f1c40f", "#e67e22", "#9b59b6",
-  "#f1c40f",
-];
-
-const CELL_DECORATIONS = [
-  "🏁", "🌟", "🎈", "🎪", "🌻", "🎵", "🍭", "🎨", "🌈", "🎠",
-  "🦋", "🎯", "🍀", "🎸", "🌸", "🎤", "🍬", "🎭", "🌺", "🎹",
-  "🦄", "🎳", "🍩", "🎺", "🌼", "🎶", "🍫", "🎪", "🌻", "🎵",
-  "🏆",
-];
+const SPIRAL_POSITIONS = generateSpiralPositions(
+  TOTAL_CELLS,
+  CENTER,
+  CENTER,
+  OUTER_R,
+  INNER_R
+);
 
 export function GameBoard() {
   const { state, dispatch } = useGame();
@@ -48,18 +71,15 @@ export function GameBoard() {
   const [selectedAnswer, setSelectedAnswer] = useState("");
   const [showResult, setShowResult] = useState(false);
   const [dragPlayerId, setDragPlayerId] = useState<string | null>(null);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [dragPos, setDragPos] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [hoppingPlayerId, setHoppingPlayerId] = useState<string | null>(null);
   const [prevRanking, setPrevRanking] = useState<string[]>([]);
   const [movedUpIds, setMovedUpIds] = useState<Set<string>>(new Set());
-  const cellRefs = useRef<Map<number, HTMLDivElement>>(new Map());
-  const boardRef = useRef<HTMLDivElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
 
   const currentPlayer = state.players[state.currentPlayerIndex];
   const currentQuestion = state.quiz.questions[state.currentQuestionIndex];
-  const totalRows = Math.ceil(TOTAL_CELLS / COLS);
 
   // Sorted ranking by position (descending)
   const rankedPlayers = useMemo(
@@ -112,7 +132,7 @@ export function GameBoard() {
       dispatch({
         type: "ADVANCE_PLAYER",
         playerId: currentPlayer.id,
-        steps: 1 + Math.floor(Math.random() * 3), // 1-3 steps
+        steps: 1 + Math.floor(Math.random() * 3),
       });
       setHoppingPlayerId(currentPlayer.id);
       setTimeout(() => setHoppingPlayerId(null), 500);
@@ -129,16 +149,25 @@ export function GameBoard() {
     setShowResult(false);
   }
 
+  // Convert screen coords to SVG coords
+  function screenToSVG(clientX: number, clientY: number): { x: number; y: number } {
+    if (!svgRef.current) return { x: 0, y: 0 };
+    const pt = svgRef.current.createSVGPoint();
+    pt.x = clientX;
+    pt.y = clientY;
+    const svgP = pt.matrixTransform(svgRef.current.getScreenCTM()?.inverse());
+    return { x: svgP.x, y: svgP.y };
+  }
+
   // Drag and drop handlers
   const handleDragStart = useCallback(
     (e: React.MouseEvent | React.TouchEvent, player: Player) => {
       e.preventDefault();
+      e.stopPropagation();
       const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
       const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
-
       setDragPlayerId(player.id);
       setDragPos({ x: clientX, y: clientY });
-      setDragOffset({ x: 0, y: 0 });
       setIsDragging(true);
     },
     []
@@ -161,23 +190,21 @@ export function GameBoard() {
       return;
     }
 
-    // Find closest cell
+    const svgCoords = screenToSVG(dragPos.x, dragPos.y);
+
+    // Find closest cell in SVG space
     let closestPos = 0;
     let closestDist = Infinity;
 
-    cellRefs.current.forEach((el, pos) => {
-      const rect = el.getBoundingClientRect();
-      const cx = rect.left + rect.width / 2;
-      const cy = rect.top + rect.height / 2;
-      const dist = Math.hypot(dragPos.x - cx, dragPos.y - cy);
+    SPIRAL_POSITIONS.forEach((pos, idx) => {
+      const dist = Math.hypot(svgCoords.x - pos.x, svgCoords.y - pos.y);
       if (dist < closestDist) {
         closestDist = dist;
-        closestPos = pos;
+        closestPos = idx;
       }
     });
 
-    // Snap to closest if within reasonable distance
-    if (closestDist < 80) {
+    if (closestDist < CELL_RADIUS * 3) {
       dispatch({
         type: "MOVE_PLAYER",
         playerId: dragPlayerId,
@@ -210,124 +237,317 @@ export function GameBoard() {
     return state.players.filter((p) => p.position === pos);
   }
 
-  function setCellRef(pos: number, el: HTMLDivElement | null) {
-    if (el) {
-      cellRefs.current.set(pos, el);
+  // Draw the spiral path connecting cells
+  function getSpiralPath(): string {
+    if (SPIRAL_POSITIONS.length < 2) return "";
+    let d = `M ${SPIRAL_POSITIONS[0].x} ${SPIRAL_POSITIONS[0].y}`;
+    for (let i = 1; i < SPIRAL_POSITIONS.length; i++) {
+      const p = SPIRAL_POSITIONS[i];
+      d += ` L ${p.x} ${p.y}`;
     }
+    return d;
   }
 
   return (
-    <div className="w-full max-w-6xl mx-auto flex flex-col lg:flex-row gap-6 p-4">
+    <div className="w-full max-w-7xl mx-auto flex flex-col lg:flex-row gap-6 p-4">
       {/* Board */}
-      <div className="flex-1">
-        <div className="retro-card p-6">
+      <div className="flex-1 flex items-center justify-center">
+        <div
+          className="rounded-3xl p-4 shadow-2xl relative"
+          style={{
+            background: "linear-gradient(145deg, #4a7c59 0%, #3d6b4a 50%, #2d5a3a 100%)",
+            border: "6px solid #2d4a35",
+          }}
+        >
+          {/* Board title */}
           <h2
-            className="text-3xl font-extrabold text-amber-900 text-center mb-4"
-            style={{ fontFamily: "Georgia, serif" }}
+            className="text-3xl font-extrabold text-center mb-2 drop-shadow-lg"
+            style={{
+              fontFamily: "Georgia, serif",
+              color: "#fdf2e0",
+              textShadow: "2px 2px 4px rgba(0,0,0,0.4)",
+            }}
           >
             Quem conhece a Graça?
           </h2>
 
-          <div
-            ref={boardRef}
-            className="grid gap-2 mx-auto"
-            style={{
-              gridTemplateColumns: `repeat(${COLS}, 1fr)`,
-              gridTemplateRows: `repeat(${totalRows}, 1fr)`,
-              maxWidth: "600px",
-            }}
+          <svg
+            ref={svgRef}
+            viewBox={`0 0 ${BOARD_SIZE} ${BOARD_SIZE}`}
+            className="w-full max-w-[600px] mx-auto"
+            style={{ filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.2))" }}
           >
-            {BOARD_LAYOUT.map((cell, pos) => {
-              const playersHere = getPlayersAtPosition(pos);
-              const isStart = pos === 0;
-              const isFinish = pos === TOTAL_CELLS - 1;
+            {/* Background circle */}
+            <circle
+              cx={CENTER}
+              cy={CENTER}
+              r={OUTER_R + 20}
+              fill="#3d6b4a"
+              stroke="#2d4a35"
+              strokeWidth="3"
+            />
+
+            {/* Spiral path (the track) */}
+            <path
+              d={getSpiralPath()}
+              fill="none"
+              stroke="#8B6914"
+              strokeWidth={CELL_RADIUS * 2 + 6}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              opacity="0.4"
+            />
+            <path
+              d={getSpiralPath()}
+              fill="none"
+              stroke="#c4956a"
+              strokeWidth={CELL_RADIUS * 2 + 2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              opacity="0.3"
+            />
+
+            {/* Cells */}
+            {SPIRAL_POSITIONS.map((pos, idx) => {
+              const special = SPECIAL_CELLS[idx];
+              const cellColor = special?.color || DEFAULT_CELL_COLOR;
+              const isStart = idx === 0;
+              const isFinish = idx === TOTAL_CELLS - 1;
+              const playersHere = getPlayersAtPosition(idx);
               const isCurrentPlayerHere = playersHere.some(
                 (p) => p.id === currentPlayer?.id
               );
 
               return (
-                <div
-                  key={pos}
-                  ref={(el) => setCellRef(pos, el)}
-                  className={`board-cell relative flex flex-col items-center justify-center rounded-xl aspect-square border-2 ${
-                    isCurrentPlayerHere ? "animate-pulse-glow" : ""
-                  }`}
-                  style={{
-                    gridRow: cell.row + 1,
-                    gridColumn: cell.col + 1,
-                    backgroundColor: CELL_COLORS[pos] + "22",
-                    borderColor: CELL_COLORS[pos] + "66",
-                  }}
-                >
+                <g key={idx}>
+                  {/* Cell background */}
+                  <circle
+                    cx={pos.x}
+                    cy={pos.y}
+                    r={CELL_RADIUS}
+                    fill={cellColor}
+                    stroke="#5a3e1b"
+                    strokeWidth="2"
+                    opacity={special ? 1 : 0.85}
+                  />
+
+                  {/* Inner highlight */}
+                  <circle
+                    cx={pos.x}
+                    cy={pos.y}
+                    r={CELL_RADIUS - 3}
+                    fill="none"
+                    stroke="rgba(255,255,255,0.3)"
+                    strokeWidth="1"
+                  />
+
+                  {/* Pulse for current player cell */}
+                  {isCurrentPlayerHere && (
+                    <circle
+                      cx={pos.x}
+                      cy={pos.y}
+                      r={CELL_RADIUS + 4}
+                      fill="none"
+                      stroke="#fff"
+                      strokeWidth="2"
+                      opacity="0.6"
+                    >
+                      <animate
+                        attributeName="r"
+                        values={`${CELL_RADIUS + 2};${CELL_RADIUS + 8};${CELL_RADIUS + 2}`}
+                        dur="1.5s"
+                        repeatCount="indefinite"
+                      />
+                      <animate
+                        attributeName="opacity"
+                        values="0.6;0.1;0.6"
+                        dur="1.5s"
+                        repeatCount="indefinite"
+                      />
+                    </circle>
+                  )}
+
                   {/* Cell number */}
-                  <span
-                    className="text-xs font-bold absolute top-0.5 left-1"
-                    style={{ color: CELL_COLORS[pos] }}
+                  <text
+                    x={pos.x}
+                    y={pos.y + (special ? -4 : 1)}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    fontSize={special ? "9" : "11"}
+                    fontWeight="bold"
+                    fill={special ? "#fff" : "#5a3e1b"}
+                    style={{ pointerEvents: "none" }}
                   >
-                    {pos}
-                  </span>
+                    {idx}
+                  </text>
 
-                  {/* Decoration */}
-                  <span className="text-lg leading-none">
-                    {CELL_DECORATIONS[pos]}
-                  </span>
+                  {/* Special icon */}
+                  {special && (
+                    <text
+                      x={pos.x}
+                      y={pos.y + 8}
+                      textAnchor="middle"
+                      dominantBaseline="middle"
+                      fontSize="10"
+                      style={{ pointerEvents: "none" }}
+                    >
+                      {special.icon}
+                    </text>
+                  )}
 
-                  {/* Special labels */}
+                  {/* Start / Finish labels */}
                   {isStart && (
-                    <span className="text-[8px] font-bold text-green-700 uppercase">
-                      Início
-                    </span>
+                    <text
+                      x={pos.x}
+                      y={pos.y + CELL_RADIUS + 14}
+                      textAnchor="middle"
+                      fontSize="10"
+                      fontWeight="bold"
+                      fill="#fdf2e0"
+                    >
+                      INÍCIO
+                    </text>
                   )}
                   {isFinish && (
-                    <span className="text-[8px] font-bold text-amber-700 uppercase">
-                      Fim
-                    </span>
+                    <text
+                      x={pos.x}
+                      y={pos.y - CELL_RADIUS - 6}
+                      textAnchor="middle"
+                      fontSize="10"
+                      fontWeight="bold"
+                      fill="#f1c40f"
+                    >
+                      GLÓRIA!
+                    </text>
                   )}
 
                   {/* Players on this cell */}
-                  {playersHere.length > 0 && (
-                    <div className="absolute -bottom-1 flex gap-0.5 justify-center">
-                      {playersHere.map((player) => (
-                        <div
-                          key={player.id}
-                          className={`player-piece text-lg ${
-                            dragPlayerId === player.id ? "dragging" : ""
-                          } ${hoppingPlayerId === player.id ? "animate-hop" : ""}`}
-                          style={{
-                            filter:
-                              dragPlayerId === player.id
-                                ? "drop-shadow(0 4px 6px rgba(0,0,0,0.3))"
-                                : "none",
-                          }}
-                          onMouseDown={(e) => handleDragStart(e, player)}
-                          onTouchStart={(e) => handleDragStart(e, player)}
-                          title={player.name}
+                  {playersHere.map((player, pi) => {
+                    const offsetAngle = (pi * 2 * Math.PI) / Math.max(playersHere.length, 1);
+                    const offsetR = playersHere.length > 1 ? 12 : 0;
+                    const px = pos.x + offsetR * Math.cos(offsetAngle);
+                    const py = pos.y + offsetR * Math.sin(offsetAngle) - 2;
+
+                    return (
+                      <g
+                        key={player.id}
+                        className={`player-piece ${hoppingPlayerId === player.id ? "animate-hop" : ""}`}
+                        onMouseDown={(e) => handleDragStart(e, player)}
+                        onTouchStart={(e) => handleDragStart(e, player)}
+                        style={{ cursor: "grab" }}
+                      >
+                        {/* Player pawn shadow */}
+                        <ellipse
+                          cx={px}
+                          cy={py + 10}
+                          rx="7"
+                          ry="3"
+                          fill="rgba(0,0,0,0.25)"
+                        />
+                        {/* Pawn body */}
+                        <circle
+                          cx={px}
+                          cy={py}
+                          r="9"
+                          fill={player.color}
+                          stroke="#fff"
+                          strokeWidth="2"
+                        />
+                        {/* Pawn head */}
+                        <circle
+                          cx={px}
+                          cy={py - 9}
+                          r="5"
+                          fill={player.color}
+                          stroke="#fff"
+                          strokeWidth="1.5"
+                        />
+                        {/* Emoji face */}
+                        <text
+                          x={px}
+                          y={py - 7}
+                          textAnchor="middle"
+                          dominantBaseline="middle"
+                          fontSize="7"
+                          style={{ pointerEvents: "none" }}
                         >
-                          <div
-                            className="w-7 h-7 rounded-full flex items-center justify-center text-sm border-2"
-                            style={{
-                              backgroundColor: player.color,
-                              borderColor: "white",
-                            }}
+                          {player.emoji}
+                        </text>
+                        {/* Waving hand */}
+                        <g className="animate-wave" style={{ transformOrigin: `${px + 8}px ${py - 2}px` }}>
+                          <text
+                            x={px + 10}
+                            y={py - 2}
+                            fontSize="7"
+                            style={{ pointerEvents: "none" }}
                           >
-                            <span
-                              className="animate-wave"
-                              style={{
-                                animationDelay: `${Math.random() * 2}s`,
-                                animationDuration: `${1.5 + Math.random()}s`,
-                              }}
-                            >
-                              {player.emoji}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                            👋
+                          </text>
+                        </g>
+                        {/* Name label */}
+                        <text
+                          x={px}
+                          y={py + 18}
+                          textAnchor="middle"
+                          fontSize="6"
+                          fontWeight="bold"
+                          fill="#fdf2e0"
+                          stroke="#333"
+                          strokeWidth="0.3"
+                          style={{ pointerEvents: "none" }}
+                        >
+                          {player.name.length > 6 ? player.name.slice(0, 6) + "…" : player.name}
+                        </text>
+                      </g>
+                    );
+                  })}
+                </g>
               );
             })}
-          </div>
+
+            {/* Center decoration */}
+            <circle
+              cx={CENTER}
+              cy={CENTER}
+              r={INNER_R + 15}
+              fill="#fdf2e0"
+              stroke="#8B6914"
+              strokeWidth="3"
+            />
+            <circle
+              cx={CENTER}
+              cy={CENTER}
+              r={INNER_R + 8}
+              fill="#fffbf0"
+              stroke="#c4956a"
+              strokeWidth="2"
+            />
+            <text
+              x={CENTER}
+              y={CENTER - 6}
+              textAnchor="middle"
+              fontSize="11"
+              fontWeight="bold"
+              fill="#8B6914"
+              style={{ fontFamily: "Georgia, serif" }}
+            >
+              GLÓRIA
+            </text>
+            <text
+              x={CENTER}
+              y={CENTER + 10}
+              textAnchor="middle"
+              fontSize="16"
+            >
+              🏆
+            </text>
+          </svg>
+
+          {/* Decorative corners */}
+          <div className="absolute top-2 left-2 text-2xl opacity-60">🎲</div>
+          <div className="absolute top-2 right-2 text-2xl opacity-60">🎪</div>
+          <div className="absolute bottom-2 left-2 text-2xl opacity-60">🌟</div>
+          <div className="absolute bottom-2 right-2 text-2xl opacity-60">🎵</div>
         </div>
       </div>
 
@@ -357,12 +577,10 @@ export function GameBoard() {
                     transform: justMovedUp ? undefined : "translateY(0)",
                   }}
                 >
-                  {/* Rank number / medal */}
                   <span className={`w-7 text-center font-extrabold text-lg ${justMovedUp ? "animate-bounce-in" : ""}`}>
                     {medal || `${i + 1}.`}
                   </span>
 
-                  {/* Player avatar */}
                   <div
                     className={`w-8 h-8 rounded-full flex items-center justify-center text-sm border-2 ${justMovedUp ? "animate-hop" : ""}`}
                     style={{
@@ -378,12 +596,10 @@ export function GameBoard() {
                     </span>
                   </div>
 
-                  {/* Name */}
                   <span className="flex-1 font-bold text-amber-900 text-sm truncate">
                     {player.name}
                   </span>
 
-                  {/* Position badge */}
                   <span
                     className={`text-xs px-2 py-0.5 rounded-full font-bold transition-all duration-300 ${
                       justMovedUp
@@ -394,14 +610,12 @@ export function GameBoard() {
                     Casa {player.position}
                   </span>
 
-                  {/* Move up arrow */}
                   {justMovedUp && (
                     <span className="text-green-500 text-sm font-bold animate-bounce-in">
                       ▲
                     </span>
                   )}
 
-                  {/* Current turn indicator */}
                   {isCurrentTurn && (
                     <span className="text-xs text-amber-600 font-bold">
                       ← Vez
@@ -444,7 +658,6 @@ export function GameBoard() {
               {!showResult ? (
                 <>
                   {currentQuestion?.type === "open-ended" ? (
-                    /* Open-ended: host reads question aloud, drags players manually */
                     <div className="mb-4">
                       <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4 text-center mb-4">
                         <div className="text-3xl mb-2">🗣️</div>
