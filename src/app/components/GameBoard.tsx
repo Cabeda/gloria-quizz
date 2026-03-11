@@ -345,16 +345,16 @@ export function GameBoard() {
                         {playersHere.map((player) => (
                           <div
                             key={player.id}
-                            className={`board-token ${hoppingPlayerId === player.id ? "animate-hop" : ""}`}
+                            className={`board-token group ${hoppingPlayerId === player.id ? "animate-hop" : ""}`}
                             style={{ backgroundColor: player.color, width: tokenSize, height: tokenSize, fontSize: tokenSize * 0.5 }}
                             onMouseDown={(e) => handleDragStart(e, player)}
                             onTouchStart={(e) => handleDragStart(e, player)}
                             data-player-name={player.name}
                           >
-                            <span className="board-token__initial">
+                            <span className="group-hover:hidden">
                               {player.name[0]}
                             </span>
-                            <span className="board-token__emoji">
+                            <span className="hidden group-hover:block animate-wave">
                               {player.emoji}
                             </span>
                           </div>

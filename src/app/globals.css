@@ -308,22 +308,6 @@ body {
   line-height: 1;
 }
 
-.board-token__emoji {
-  display: none;
-  font-size: 1.2em;
-  line-height: 1;
-}
-
-.board-token:hover .board-token__initial {
-  display: none;
-}
-
-.board-token:hover .board-token__emoji {
-  display: block;
-  animation: wave 1.5s ease-in-out infinite;
-  transform-origin: 70% 70%;
-}
-
 .confetti-piece {
   position: fixed;
   width: 10px;
