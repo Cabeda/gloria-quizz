@@ -28,7 +28,7 @@ const TOTAL_POSITIONS = 30;
 
 const initialState: GameState = {
   phase: "menu",
-  quiz: { title: "", questions: [] },
+  quiz: { questions: [] },
   players: [],
   currentQuestionIndex: 0,
   currentPlayerIndex: 0,

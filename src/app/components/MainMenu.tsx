@@ -28,10 +28,10 @@ export function MainMenu() {
   return (
     <div className="retro-card p-12 text-center max-w-lg w-full animate-bounce-in">
       <div className="text-6xl mb-4">🎲</div>
-      <h1 className="text-4xl font-extrabold text-amber-900 mb-2" style={{ fontFamily: "Georgia, serif" }}>
+      <h1 className="text-4xl font-extrabold text-gloria-brown mb-2" style={{ fontFamily: "Georgia, serif" }}>
         Quem conhece a Graça?
       </h1>
-      <p className="text-amber-700 mb-8 text-lg">
+      <p className="text-gloria-brown-light mb-8 text-lg">
         O jogo de tabuleiro com quiz mais divertido!
       </p>
 
@@ -51,12 +51,12 @@ export function MainMenu() {
           {hasSavedGame ? "Novo Quiz" : "Criar Quiz"}
         </button>
         {hasSavedGame && (
-          <p className="text-amber-600 text-sm">
+          <p className="text-gloria-brown-light text-sm">
             Tens um jogo guardado. Continua ou cria um novo!
           </p>
         )}
         {!hasSavedGame && (
-          <p className="text-amber-600 text-sm mt-2">
+          <p className="text-gloria-brown-light text-sm mt-2">
             Cria as tuas perguntas e desafia os teus amigos!
           </p>
         )}

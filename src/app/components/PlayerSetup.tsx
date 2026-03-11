@@ -22,18 +22,18 @@ export function PlayerSetup() {
   return (
     <div className="retro-card p-8 max-w-lg w-full animate-slide-up">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-3xl font-extrabold text-amber-900" style={{ fontFamily: "Georgia, serif" }}>
+        <h2 className="text-3xl font-extrabold text-gloria-brown" style={{ fontFamily: "Georgia, serif" }}>
           Jogadores
         </h2>
         <button
-          className="text-amber-600 hover:text-amber-800 text-sm underline"
+          className="text-gloria-brown-light hover:text-gloria-brown text-sm underline"
           onClick={() => dispatch({ type: "SET_PHASE", phase: "quiz-creator" })}
         >
           Voltar
         </button>
       </div>
 
-      <p className="text-amber-700 mb-4">
+      <p className="text-gloria-brown-light mb-4">
         Adiciona entre 2 e 8 jogadores para começar!
       </p>
 
@@ -60,7 +60,7 @@ export function PlayerSetup() {
         {state.players.map((player, i) => (
           <div
             key={player.id}
-            className="flex items-center gap-3 bg-amber-50 border-2 border-amber-200 rounded-xl p-3 animate-bounce-in"
+            className="flex items-center gap-3 bg-gloria-cream border-2 border-gloria-tan rounded-xl p-3 animate-bounce-in"
             style={{ animationDelay: `${i * 0.1}s` }}
           >
             <div
@@ -71,7 +71,7 @@ export function PlayerSetup() {
                 {player.emoji}
               </span>
             </div>
-            <span className="flex-1 font-bold text-amber-900 text-lg">
+            <span className="flex-1 font-bold text-gloria-brown text-lg">
               {player.name}
             </span>
             <div
@@ -89,7 +89,7 @@ export function PlayerSetup() {
         ))}
 
         {state.players.length === 0 && (
-          <div className="text-center text-amber-400 py-8">
+          <div className="text-center text-gloria-brown-light py-8">
             <div className="text-4xl mb-2">👥</div>
             <p>Ainda sem jogadores...</p>
           </div>
@@ -105,7 +105,7 @@ export function PlayerSetup() {
       </button>
 
       {state.players.length > 0 && state.players.length < 2 && (
-        <p className="text-amber-600 text-sm text-center mt-2">
+        <p className="text-gloria-brown-light text-sm text-center mt-2">
           Precisas de pelo menos 2 jogadores
         </p>
       )}

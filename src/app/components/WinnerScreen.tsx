@@ -53,7 +53,7 @@ export function WinnerScreen() {
 
       <div className="text-7xl mb-4">🏆</div>
       <h1
-        className="text-4xl font-extrabold text-amber-900 mb-2"
+        className="text-4xl font-extrabold text-gloria-brown mb-2"
         style={{ fontFamily: "Georgia, serif" }}
       >
         Parabéns!
@@ -69,13 +69,13 @@ export function WinnerScreen() {
         >
           <span className="animate-wave">{winner.emoji}</span>
         </div>
-        <p className="text-3xl font-extrabold text-amber-800">{winner.name}</p>
-        <p className="text-amber-600 text-lg mt-1">venceu o jogo!</p>
+        <p className="text-3xl font-extrabold text-gloria-brown">{winner.name}</p>
+        <p className="text-gloria-brown-light text-lg mt-1">venceu o jogo!</p>
       </div>
 
       {/* Final standings */}
-      <div className="bg-amber-50 rounded-xl p-4 mb-6">
-        <h3 className="text-amber-800 font-bold mb-2">Classificação Final</h3>
+      <div className="bg-gloria-cream rounded-xl p-4 mb-6">
+        <h3 className="text-gloria-brown font-bold mb-2">Classificação Final</h3>
         <div className="space-y-2">
           {[...state.players]
             .sort((a, b) => b.position - a.position)
@@ -84,7 +84,7 @@ export function WinnerScreen() {
                 key={player.id}
                 className="flex items-center gap-2 text-sm"
               >
-                <span className="font-bold text-amber-700 w-6">
+                <span className="font-bold text-gloria-brown-light w-6">
                   {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`}
                 </span>
                 <div
@@ -96,10 +96,10 @@ export function WinnerScreen() {
                 >
                   {player.emoji}
                 </div>
-                <span className="flex-1 text-left font-bold text-amber-900">
+                <span className="flex-1 text-left font-bold text-gloria-brown">
                   {player.name}
                 </span>
-                <span className="text-amber-600">Casa {player.position}</span>
+                <span className="text-gloria-brown-light">Casa {player.position}</span>
               </div>
             ))}
         </div>

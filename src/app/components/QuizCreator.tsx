@@ -10,7 +10,6 @@ export function QuizCreator() {
   // If we have players, we're editing mid-game
   const isEditing = state.players.length > 0;
 
-  const [title, setTitle] = useState(state.quiz.title || "");
   const [questions, setQuestions] = useState<Question[]>(
     state.quiz.questions.length > 0 ? state.quiz.questions : []
   );
@@ -54,7 +53,7 @@ export function QuizCreator() {
 
   function saveAndContinue() {
     if (questions.length === 0) return;
-    const quiz: Quiz = { title: title.trim() || "Quiz sem titulo", questions };
+    const quiz: Quiz = { questions };
     dispatch({ type: "SET_QUIZ", quiz });
 
     if (isEditing) {
@@ -76,11 +75,11 @@ export function QuizCreator() {
   return (
     <div className="retro-card p-8 max-w-2xl w-full animate-slide-up">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-3xl font-extrabold text-amber-900" style={{ fontFamily: "Georgia, serif" }}>
+        <h2 className="text-3xl font-extrabold text-gloria-brown" style={{ fontFamily: "Georgia, serif" }}>
           {isEditing ? "Editar Quiz" : "Criar Quiz"}
         </h2>
         <button
-          className="text-amber-600 hover:text-amber-800 text-sm underline"
+          className="text-gloria-brown-light hover:text-gloria-brown text-sm underline"
           onClick={handleBack}
         >
           Voltar
@@ -95,33 +94,23 @@ export function QuizCreator() {
         </div>
       )}
 
-      <div className="mb-6">
-        <label className="block text-amber-800 font-bold mb-1">Titulo do Quiz</label>
-        <input
-          className="retro-input w-full"
-          placeholder="Ex: Conhecimentos Gerais"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-        />
-      </div>
-
       {/* Existing questions */}
       {questions.length > 0 && (
         <div className="mb-6">
-          <h3 className="text-amber-800 font-bold mb-2">
+          <h3 className="text-gloria-brown font-bold mb-2">
             Perguntas ({questions.length})
           </h3>
           <div className="space-y-2 max-h-48 overflow-y-auto">
             {questions.map((q, i) => (
               <div
                 key={q.id}
-                className="flex items-center justify-between bg-amber-50 border-2 border-amber-200 rounded-lg p-3 animate-slide-up"
+                className="flex items-center justify-between bg-gloria-cream border-2 border-gloria-tan rounded-lg p-3 animate-slide-up"
                 style={{ animationDelay: `${i * 0.05}s` }}
               >
                 <div className="flex-1 min-w-0">
-                  <span className="font-bold text-amber-700 mr-2">{i + 1}.</span>
-                  <span className="text-amber-900 truncate">{q.text}</span>
-                  <span className="ml-2 text-xs bg-amber-200 text-amber-700 px-2 py-0.5 rounded-full">
+                  <span className="font-bold text-gloria-brown-light mr-2">{i + 1}.</span>
+                  <span className="text-gloria-brown truncate">{q.text}</span>
+                  <span className="ml-2 text-xs bg-gloria-tan text-gloria-brown-light px-2 py-0.5 rounded-full">
                     {q.type === "open-ended" ? "Aberta" : "Escolha multipla"}
                   </span>
                 </div>
@@ -139,8 +128,8 @@ export function QuizCreator() {
       )}
 
       {/* New question form */}
-      <div className="bg-amber-50 border-2 border-dashed border-amber-300 rounded-xl p-5 mb-6">
-        <h3 className="text-amber-800 font-bold mb-3">Nova Pergunta</h3>
+      <div className="bg-gloria-cream border-2 border-dashed border-gloria-brown-light rounded-xl p-5 mb-6">
+        <h3 className="text-gloria-brown font-bold mb-3">Nova Pergunta</h3>
 
         <div className="mb-3">
           <input
@@ -166,9 +155,9 @@ export function QuizCreator() {
                   options: prev.options?.length ? prev.options : ["", "", "", ""],
                 }))
               }
-              className="accent-amber-600"
+              className="accent-gloria-brown-light"
             />
-            <span className="text-amber-800 font-medium">Escolha multipla</span>
+            <span className="text-gloria-brown font-medium">Escolha multipla</span>
           </label>
           <label className="flex items-center gap-2 cursor-pointer">
             <input
@@ -182,15 +171,15 @@ export function QuizCreator() {
                   options: [],
                 }))
               }
-              className="accent-amber-600"
+              className="accent-gloria-brown-light"
             />
-            <span className="text-amber-800 font-medium">Resposta aberta</span>
+            <span className="text-gloria-brown font-medium">Resposta aberta</span>
           </label>
         </div>
 
         {editingQuestion.type === "multiple-choice" && (
           <div className="mb-3 space-y-2">
-            <label className="block text-amber-700 text-sm font-medium">Opcoes</label>
+            <label className="block text-gloria-brown-light text-sm font-medium">Opcoes</label>
             {(editingQuestion.options || []).map((opt, i) => (
               <input
                 key={i}
@@ -205,7 +194,7 @@ export function QuizCreator() {
               />
             ))}
             <button
-              className="text-amber-600 hover:text-amber-800 text-sm font-medium"
+              className="text-gloria-brown-light hover:text-gloria-brown text-sm font-medium"
               onClick={() =>
                 setEditingQuestion((prev) => ({
                   ...prev,
@@ -220,7 +209,7 @@ export function QuizCreator() {
 
         {editingQuestion.type === "multiple-choice" && (
           <div className="mb-3">
-            <label className="block text-amber-700 text-sm font-medium mb-1">
+            <label className="block text-gloria-brown-light text-sm font-medium mb-1">
               Resposta correta
             </label>
             {editingQuestion.options?.some((o) => o.trim()) ? (
