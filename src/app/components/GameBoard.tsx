@@ -10,16 +10,16 @@ const COLS = 7;
 // Special cell definitions with SVG icon types and colors
 const CELL_THEMES: Record<number, { bg: string; icon: string; label: string }> = {
   0:  { bg: "#e74c3c", icon: "flag",      label: "Início" },
-  5:  { bg: "#e84393", icon: "tent",      label: "Feira" },
+  5:  { bg: "#e84393", icon: "tent",      label: "25 de Abril" },
   7:  { bg: "#3498db", icon: "music",     label: "Fado" },
-  10: { bg: "#e84393", icon: "star",      label: "Estrela" },
+  10: { bg: "#e84393", icon: "star",      label: "Expo 98" },
   13: { bg: "#3498db", icon: "palette",   label: "Azulejo" },
-  15: { bg: "#e74c3c", icon: "masks",     label: "Teatro" },
+  15: { bg: "#e74c3c", icon: "masks",     label: "Amália" },
   18: { bg: "#3498db", icon: "guitar",    label: "Guitarra" },
-  20: { bg: "#e84393", icon: "butterfly", label: "Jardim" },
-  23: { bg: "#3498db", icon: "target",    label: "Pontaria" },
-  25: { bg: "#e74c3c", icon: "clover",    label: "Sorte" },
-  28: { bg: "#e84393", icon: "rainbow",   label: "Arco-íris" },
+  20: { bg: "#e84393", icon: "butterfly", label: "Descobertas" },
+  23: { bg: "#3498db", icon: "target",    label: "Euro 2016" },
+  25: { bg: "#e74c3c", icon: "clover",    label: "Pessoa" },
+  28: { bg: "#e84393", icon: "rainbow",   label: "Lusofonia" },
   30: { bg: "#f1c40f", icon: "trophy",    label: "Glória!" },
 };
 
@@ -314,7 +314,7 @@ export function GameBoard() {
                 const playersHere = getPlayersAtPosition(i);
                 const isFinish = i === TOTAL_CELLS - 1;
                 const arrow = getArrow(i);
-                const tokenSize = playersHere.length > 8 ? 14 : playersHere.length > 4 ? 18 : 22;
+                const tokenSize = playersHere.length > 8 ? 20 : playersHere.length > 4 ? 26 : 32;
 
                 return (
                   <div
