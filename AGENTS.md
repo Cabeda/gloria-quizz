@@ -64,3 +64,6 @@ pnpm lint         # Run ESLint
 - Keep all game state in `GameContext`. Do not introduce additional state stores.
 - CSS animations go in `globals.css`. Tailwind utility classes for layout and spacing.
 - Player limit: 2–8 players. Board has 31 positions (0–30).
+- **Question types:**
+  - **Multiple choice:** Players select an answer, auto-checked against `correctAnswer`. Correct = auto-advance on the board.
+  - **Open-ended:** Only the question text is shown. The host reads it aloud, judges answers verbally, and manually drags correct players forward on the board. No `correctAnswer` is stored.

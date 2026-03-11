@@ -3,7 +3,8 @@ export interface Question {
   text: string;
   type: "open-ended" | "multiple-choice";
   options?: string[];
-  correctAnswer: string;
+  /** Only required for multiple-choice. Open-ended questions are judged by the host. */
+  correctAnswer?: string;
 }
 
 export interface Quiz {

@@ -19,15 +19,19 @@ export function QuizCreator() {
   });
 
   function addQuestion() {
-    if (!editingQuestion.text?.trim() || !editingQuestion.correctAnswer?.trim()) return;
+    if (!editingQuestion.text?.trim()) return;
+    const isMultipleChoice = editingQuestion.type === "multiple-choice";
+    if (isMultipleChoice && !editingQuestion.correctAnswer?.trim()) return;
 
     const newQ: Question = {
       id: crypto.randomUUID(),
       text: editingQuestion.text!.trim(),
       type: editingQuestion.type || "multiple-choice",
-      correctAnswer: editingQuestion.correctAnswer!.trim(),
-      ...(editingQuestion.type === "multiple-choice"
-        ? { options: editingQuestion.options?.filter((o) => o.trim()) }
+      ...(isMultipleChoice
+        ? {
+            correctAnswer: editingQuestion.correctAnswer!.trim(),
+            options: editingQuestion.options?.filter((o) => o.trim()),
+          }
         : {}),
     };
 
@@ -188,50 +192,62 @@ export function QuizCreator() {
           </div>
         )}
 
-        <div className="mb-3">
-          <label className="block text-amber-700 text-sm font-medium mb-1">
-            Resposta correta
-          </label>
-          {editingQuestion.type === "multiple-choice" &&
-          editingQuestion.options?.some((o) => o.trim()) ? (
-            <select
-              className="retro-input w-full"
-              value={editingQuestion.correctAnswer || ""}
-              onChange={(e) =>
-                setEditingQuestion((prev) => ({
-                  ...prev,
-                  correctAnswer: e.target.value,
-                }))
-              }
-            >
-              <option value="">Seleciona a resposta correta...</option>
-              {editingQuestion.options
-                ?.filter((o) => o.trim())
-                .map((opt, i) => (
-                  <option key={i} value={opt}>
-                    {opt}
-                  </option>
-                ))}
-            </select>
-          ) : (
-            <input
-              className="retro-input w-full"
-              placeholder="Escreve a resposta correta..."
-              value={editingQuestion.correctAnswer || ""}
-              onChange={(e) =>
-                setEditingQuestion((prev) => ({
-                  ...prev,
-                  correctAnswer: e.target.value,
-                }))
-              }
-            />
-          )}
-        </div>
+        {editingQuestion.type === "multiple-choice" && (
+          <div className="mb-3">
+            <label className="block text-amber-700 text-sm font-medium mb-1">
+              Resposta correta
+            </label>
+            {editingQuestion.options?.some((o) => o.trim()) ? (
+              <select
+                className="retro-input w-full"
+                value={editingQuestion.correctAnswer || ""}
+                onChange={(e) =>
+                  setEditingQuestion((prev) => ({
+                    ...prev,
+                    correctAnswer: e.target.value,
+                  }))
+                }
+              >
+                <option value="">Seleciona a resposta correta...</option>
+                {editingQuestion.options
+                  ?.filter((o) => o.trim())
+                  .map((opt, i) => (
+                    <option key={i} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+              </select>
+            ) : (
+              <input
+                className="retro-input w-full"
+                placeholder="Escreve a resposta correta..."
+                value={editingQuestion.correctAnswer || ""}
+                onChange={(e) =>
+                  setEditingQuestion((prev) => ({
+                    ...prev,
+                    correctAnswer: e.target.value,
+                  }))
+                }
+              />
+            )}
+          </div>
+        )}
+
+        {editingQuestion.type === "open-ended" && (
+          <div className="mb-3 bg-blue-50 border-2 border-blue-200 rounded-lg p-3">
+            <p className="text-blue-700 text-sm">
+              As perguntas abertas são avaliadas pelo apresentador. Arrasta os jogadores que acertarem no tabuleiro.
+            </p>
+          </div>
+        )}
 
         <button
           className="retro-button retro-button-secondary text-sm py-2 px-6"
           onClick={addQuestion}
-          disabled={!editingQuestion.text?.trim() || !editingQuestion.correctAnswer?.trim()}
+          disabled={
+            !editingQuestion.text?.trim() ||
+            (editingQuestion.type === "multiple-choice" && !editingQuestion.correctAnswer?.trim())
+          }
         >
           Adicionar Pergunta
         </button>

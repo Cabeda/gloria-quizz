@@ -77,7 +77,7 @@ export function GameBoard() {
   function handleSubmitAnswer() {
     const isCorrect =
       selectedAnswer.trim().toLowerCase() ===
-      currentQuestion.correctAnswer.trim().toLowerCase();
+      (currentQuestion.correctAnswer || "").trim().toLowerCase();
 
     if (isCorrect) {
       dispatch({ type: "ANSWER_CORRECT" });
@@ -378,7 +378,26 @@ export function GameBoard() {
 
               {!showResult ? (
                 <>
-                  {currentQuestion?.type === "multiple-choice" &&
+                  {currentQuestion?.type === "open-ended" ? (
+                    /* Open-ended: host reads question aloud, drags players manually */
+                    <div className="mb-4">
+                      <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4 text-center mb-4">
+                        <div className="text-3xl mb-2">🗣️</div>
+                        <p className="text-blue-800 font-bold text-sm">
+                          Pergunta aberta!
+                        </p>
+                        <p className="text-blue-600 text-sm mt-1">
+                          Lê a pergunta em voz alta. Arrasta no tabuleiro os jogadores que acertarem.
+                        </p>
+                      </div>
+                      <button
+                        className="retro-button retro-button-secondary w-full"
+                        onClick={handleNextTurn}
+                      >
+                        Próxima Pergunta
+                      </button>
+                    </div>
+                  ) : currentQuestion?.type === "multiple-choice" &&
                   currentQuestion.options ? (
                     <div className="space-y-2 mb-4">
                       {currentQuestion.options.map((opt, i) => (
@@ -398,29 +417,17 @@ export function GameBoard() {
                         </button>
                       ))}
                     </div>
-                  ) : (
-                    <div className="mb-4">
-                      <input
-                        className="retro-input w-full"
-                        placeholder="Escreve a tua resposta..."
-                        value={selectedAnswer}
-                        onChange={(e) => setSelectedAnswer(e.target.value)}
-                        onKeyDown={(e) =>
-                          e.key === "Enter" &&
-                          selectedAnswer.trim() &&
-                          handleSubmitAnswer()
-                        }
-                      />
-                    </div>
-                  )}
+                  ) : null}
 
-                  <button
-                    className="retro-button retro-button-green w-full"
-                    onClick={handleSubmitAnswer}
-                    disabled={!selectedAnswer.trim()}
-                  >
-                    Responder
-                  </button>
+                  {currentQuestion?.type === "multiple-choice" && (
+                    <button
+                      className="retro-button retro-button-green w-full"
+                      onClick={handleSubmitAnswer}
+                      disabled={!selectedAnswer.trim()}
+                    >
+                      Responder
+                    </button>
+                  )}
                 </>
               ) : (
                 <div className="animate-bounce-in">
