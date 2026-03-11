@@ -105,24 +105,26 @@ export function WinnerScreen() {
         </div>
       </div>
 
-      <div className="flex gap-3">
+      <div className="flex flex-col gap-3">
+        <div className="flex gap-3">
+          <button
+            className="retro-button retro-button-green flex-1"
+            onClick={() => dispatch({ type: "RESTART_GAME" })}
+          >
+            Jogar Outra Vez
+          </button>
+          <button
+            className="retro-button flex-1"
+            onClick={() => dispatch({ type: "RESET_GAME" })}
+          >
+            Novo Jogo
+          </button>
+        </div>
         <button
-          className="retro-button retro-button-secondary flex-1"
-          onClick={() => {
-            // Reset positions but keep quiz and players
-            state.players.forEach((p) => {
-              dispatch({ type: "MOVE_PLAYER", playerId: p.id, position: 0 });
-            });
-            dispatch({ type: "SET_PHASE", phase: "playing" });
-          }}
+          className="retro-button retro-button-secondary w-full text-sm"
+          onClick={() => dispatch({ type: "SET_PHASE", phase: "quiz-creator" })}
         >
-          Jogar Outra Vez
-        </button>
-        <button
-          className="retro-button flex-1"
-          onClick={() => dispatch({ type: "RESET_GAME" })}
-        >
-          Novo Jogo
+          Editar Quiz
         </button>
       </div>
 

@@ -1,9 +1,29 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useGame } from "../context/GameContext";
+import { loadState } from "../lib/persistence";
+import type { GameState } from "../types";
 
 export function MainMenu() {
   const { dispatch } = useGame();
+  const [hasSavedGame, setHasSavedGame] = useState(false);
+
+  useEffect(() => {
+    loadState<GameState>().then((saved) => {
+      if (saved && saved.phase !== "menu") {
+        setHasSavedGame(true);
+      }
+    }).catch(() => {});
+  }, []);
+
+  function resumeGame() {
+    loadState<GameState>().then((saved) => {
+      if (saved) {
+        dispatch({ type: "RESTORE_STATE", state: saved });
+      }
+    }).catch(() => {});
+  }
 
   return (
     <div className="retro-card p-12 text-center max-w-lg w-full animate-bounce-in">
@@ -16,15 +36,30 @@ export function MainMenu() {
       </p>
 
       <div className="flex flex-col gap-4">
+        {hasSavedGame && (
+          <button
+            className="retro-button retro-button-green text-xl"
+            onClick={resumeGame}
+          >
+            Continuar Jogo
+          </button>
+        )}
         <button
           className="retro-button text-xl"
           onClick={() => dispatch({ type: "SET_PHASE", phase: "quiz-creator" })}
         >
-          Criar Quiz
+          {hasSavedGame ? "Novo Quiz" : "Criar Quiz"}
         </button>
-        <p className="text-amber-600 text-sm mt-2">
-          Cria as tuas perguntas e desafia os teus amigos!
-        </p>
+        {hasSavedGame && (
+          <p className="text-amber-600 text-sm">
+            Tens um jogo guardado. Continua ou cria um novo!
+          </p>
+        )}
+        {!hasSavedGame && (
+          <p className="text-amber-600 text-sm mt-2">
+            Cria as tuas perguntas e desafia os teus amigos!
+          </p>
+        )}
       </div>
 
       <div className="mt-8 flex justify-center gap-3">

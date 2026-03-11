@@ -754,6 +754,28 @@ export function GameBoard() {
             Arrasta os jogadores no tabuleiro para os mover manualmente
           </p>
         </div>
+
+        {/* Game actions */}
+        <div className="retro-card p-3 flex flex-col gap-2">
+          <button
+            className="retro-button retro-button-secondary text-sm py-2 w-full"
+            onClick={() => dispatch({ type: "SET_PHASE", phase: "quiz-creator" })}
+          >
+            Editar Quiz
+          </button>
+          <button
+            className="retro-button retro-button-secondary text-sm py-2 w-full"
+            onClick={() => dispatch({ type: "RESTART_GAME" })}
+          >
+            Reiniciar Jogo
+          </button>
+          <button
+            className="text-amber-600 hover:text-amber-800 text-xs underline"
+            onClick={() => dispatch({ type: "RESET_GAME" })}
+          >
+            Voltar ao Menu
+          </button>
+        </div>
       </div>
 
       {/* Dragging ghost */}

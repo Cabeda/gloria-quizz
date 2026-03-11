@@ -4,9 +4,12 @@ import {
   createContext,
   useContext,
   useReducer,
+  useEffect,
+  useState,
   type ReactNode,
 } from "react";
-import type { GameState, GamePhase, Quiz, Player, Question } from "../types";
+import type { GameState, GamePhase, Quiz, Player } from "../types";
+import { saveState, loadState, clearState } from "../lib/persistence";
 
 const PLAYER_COLORS = [
   "#e74c3c",
@@ -44,15 +47,23 @@ type Action =
   | { type: "ANSWER_CORRECT" }
   | { type: "ANSWER_WRONG" }
   | { type: "RESET_ANSWER" }
-  | { type: "RESET_GAME" };
+  | { type: "RESET_GAME" }
+  | { type: "RESTART_GAME" }
+  | { type: "RESTORE_STATE"; state: GameState };
 
 function gameReducer(state: GameState, action: Action): GameState {
   switch (action.type) {
     case "SET_PHASE":
       return { ...state, phase: action.phase };
 
-    case "SET_QUIZ":
-      return { ...state, quiz: action.quiz };
+    case "SET_QUIZ": {
+      // Clamp question index if questions were removed
+      const clampedIdx =
+        action.quiz.questions.length > 0
+          ? Math.min(state.currentQuestionIndex, action.quiz.questions.length - 1)
+          : 0;
+      return { ...state, quiz: action.quiz, currentQuestionIndex: clampedIdx };
+    }
 
     case "ADD_PLAYER": {
       const idx = state.players.length;
@@ -112,7 +123,6 @@ function gameReducer(state: GameState, action: Action): GameState {
         (state.currentPlayerIndex + 1) % state.players.length;
       const nextQuestionIndex =
         (state.currentQuestionIndex + 1) % state.quiz.questions.length;
-      // Check if someone won
       const winner = state.players.find(
         (p) => p.position >= state.totalPositions
       );
@@ -125,10 +135,22 @@ function gameReducer(state: GameState, action: Action): GameState {
       };
     }
 
-    case "RESET_GAME":
+    case "RESTART_GAME":
+      // Keep quiz and players, reset positions and turn state
       return {
-        ...initialState,
+        ...state,
+        phase: "playing",
+        players: state.players.map((p) => ({ ...p, position: 0 })),
+        currentQuestionIndex: 0,
+        currentPlayerIndex: 0,
+        answeredCorrectly: null,
       };
+
+    case "RESET_GAME":
+      return { ...initialState };
+
+    case "RESTORE_STATE":
+      return action.state;
 
     default:
       return state;
@@ -138,15 +160,41 @@ function gameReducer(state: GameState, action: Action): GameState {
 interface GameContextType {
   state: GameState;
   dispatch: React.Dispatch<Action>;
+  isLoading: boolean;
 }
 
 const GameContext = createContext<GameContextType | null>(null);
 
 export function GameProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(gameReducer, initialState);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Restore state from IndexedDB on mount
+  useEffect(() => {
+    loadState<GameState>()
+      .then((saved) => {
+        if (saved && saved.phase !== "menu") {
+          dispatch({ type: "RESTORE_STATE", state: saved });
+        }
+      })
+      .catch(() => {
+        // IndexedDB unavailable — start fresh
+      })
+      .finally(() => setIsLoading(false));
+  }, []);
+
+  // Persist state to IndexedDB on every change (skip while loading)
+  useEffect(() => {
+    if (isLoading) return;
+    if (state.phase === "menu") {
+      clearState().catch(() => {});
+    } else {
+      saveState(state).catch(() => {});
+    }
+  }, [state, isLoading]);
 
   return (
-    <GameContext.Provider value={{ state, dispatch }}>
+    <GameContext.Provider value={{ state, dispatch, isLoading }}>
       {children}
     </GameContext.Provider>
   );

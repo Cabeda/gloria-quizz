@@ -6,6 +6,10 @@ import type { Question, Quiz } from "../types";
 
 export function QuizCreator() {
   const { state, dispatch } = useGame();
+
+  // If we have players, we're editing mid-game
+  const isEditing = state.players.length > 0;
+
   const [title, setTitle] = useState(state.quiz.title || "");
   const [questions, setQuestions] = useState<Question[]>(
     state.quiz.questions.length > 0 ? state.quiz.questions : []
@@ -50,27 +54,49 @@ export function QuizCreator() {
 
   function saveAndContinue() {
     if (questions.length === 0) return;
-    const quiz: Quiz = { title: title.trim() || "Quiz sem título", questions };
+    const quiz: Quiz = { title: title.trim() || "Quiz sem titulo", questions };
     dispatch({ type: "SET_QUIZ", quiz });
-    dispatch({ type: "SET_PHASE", phase: "player-setup" });
+
+    if (isEditing) {
+      // Return to the game
+      dispatch({ type: "SET_PHASE", phase: "playing" });
+    } else {
+      dispatch({ type: "SET_PHASE", phase: "player-setup" });
+    }
+  }
+
+  function handleBack() {
+    if (isEditing) {
+      dispatch({ type: "SET_PHASE", phase: "playing" });
+    } else {
+      dispatch({ type: "SET_PHASE", phase: "menu" });
+    }
   }
 
   return (
     <div className="retro-card p-8 max-w-2xl w-full animate-slide-up">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-3xl font-extrabold text-amber-900" style={{ fontFamily: "Georgia, serif" }}>
-          Criar Quiz
+          {isEditing ? "Editar Quiz" : "Criar Quiz"}
         </h2>
         <button
           className="text-amber-600 hover:text-amber-800 text-sm underline"
-          onClick={() => dispatch({ type: "SET_PHASE", phase: "menu" })}
+          onClick={handleBack}
         >
           Voltar
         </button>
       </div>
 
+      {isEditing && (
+        <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-3 mb-6">
+          <p className="text-blue-700 text-sm">
+            Podes adicionar ou remover perguntas. O jogo continua de onde parou.
+          </p>
+        </div>
+      )}
+
       <div className="mb-6">
-        <label className="block text-amber-800 font-bold mb-1">Título do Quiz</label>
+        <label className="block text-amber-800 font-bold mb-1">Titulo do Quiz</label>
         <input
           className="retro-input w-full"
           placeholder="Ex: Conhecimentos Gerais"
@@ -96,7 +122,7 @@ export function QuizCreator() {
                   <span className="font-bold text-amber-700 mr-2">{i + 1}.</span>
                   <span className="text-amber-900 truncate">{q.text}</span>
                   <span className="ml-2 text-xs bg-amber-200 text-amber-700 px-2 py-0.5 rounded-full">
-                    {q.type === "open-ended" ? "Aberta" : "Escolha múltipla"}
+                    {q.type === "open-ended" ? "Aberta" : "Escolha multipla"}
                   </span>
                 </div>
                 <button
@@ -104,7 +130,7 @@ export function QuizCreator() {
                   className="ml-2 text-red-400 hover:text-red-600 text-lg font-bold"
                   aria-label={`Remover pergunta ${i + 1}`}
                 >
-                  ×
+                  x
                 </button>
               </div>
             ))}
@@ -142,7 +168,7 @@ export function QuizCreator() {
               }
               className="accent-amber-600"
             />
-            <span className="text-amber-800 font-medium">Escolha múltipla</span>
+            <span className="text-amber-800 font-medium">Escolha multipla</span>
           </label>
           <label className="flex items-center gap-2 cursor-pointer">
             <input
@@ -164,12 +190,12 @@ export function QuizCreator() {
 
         {editingQuestion.type === "multiple-choice" && (
           <div className="mb-3 space-y-2">
-            <label className="block text-amber-700 text-sm font-medium">Opções</label>
+            <label className="block text-amber-700 text-sm font-medium">Opcoes</label>
             {(editingQuestion.options || []).map((opt, i) => (
               <input
                 key={i}
                 className="retro-input w-full text-sm"
-                placeholder={`Opção ${i + 1}`}
+                placeholder={`Opcao ${i + 1}`}
                 value={opt}
                 onChange={(e) => {
                   const newOpts = [...(editingQuestion.options || [])];
@@ -187,7 +213,7 @@ export function QuizCreator() {
                 }))
               }
             >
-              + Adicionar opção
+              + Adicionar opcao
             </button>
           </div>
         )}
@@ -236,7 +262,7 @@ export function QuizCreator() {
         {editingQuestion.type === "open-ended" && (
           <div className="mb-3 bg-blue-50 border-2 border-blue-200 rounded-lg p-3">
             <p className="text-blue-700 text-sm">
-              As perguntas abertas são avaliadas pelo apresentador. Arrasta os jogadores que acertarem no tabuleiro.
+              As perguntas abertas sao avaliadas pelo apresentador. Arrasta os jogadores que acertarem no tabuleiro.
             </p>
           </div>
         )}
@@ -258,7 +284,9 @@ export function QuizCreator() {
         onClick={saveAndContinue}
         disabled={questions.length === 0}
       >
-        Continuar ({questions.length} pergunta{questions.length !== 1 ? "s" : ""})
+        {isEditing
+          ? `Guardar e Voltar ao Jogo (${questions.length} pergunta${questions.length !== 1 ? "s" : ""})`
+          : `Continuar (${questions.length} pergunta${questions.length !== 1 ? "s" : ""})`}
       </button>
     </div>
   );
