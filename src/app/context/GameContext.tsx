@@ -20,9 +20,11 @@ const PLAYER_COLORS = [
   "#1abc9c",
   "#e67e22",
   "#e84393",
+  "#2c3e50",
+  "#d35400",
 ];
 
-const PLAYER_EMOJIS = ["🧒", "👧", "👦", "👶", "🧒", "👧", "👦", "👶"];
+const PLAYER_EMOJIS = ["🧒", "👧", "👦", "👶", "🧒", "👧", "👦", "👶", "🧒", "👧"];
 
 const TOTAL_POSITIONS = 30;
 
@@ -31,7 +33,6 @@ const initialState: GameState = {
   quiz: { questions: [] },
   players: [],
   currentQuestionIndex: 0,
-  currentPlayerIndex: 0,
   totalPositions: TOTAL_POSITIONS,
   answeredCorrectly: null,
 };
@@ -43,7 +44,7 @@ type Action =
   | { type: "REMOVE_PLAYER"; id: string }
   | { type: "MOVE_PLAYER"; playerId: string; position: number }
   | { type: "ADVANCE_PLAYER"; playerId: string; steps: number }
-  | { type: "NEXT_TURN" }
+  | { type: "NEXT_QUESTION" }
   | { type: "ANSWER_CORRECT" }
   | { type: "ANSWER_WRONG" }
   | { type: "RESET_ANSWER" }
@@ -118,9 +119,7 @@ function gameReducer(state: GameState, action: Action): GameState {
     case "RESET_ANSWER":
       return { ...state, answeredCorrectly: null };
 
-    case "NEXT_TURN": {
-      const nextPlayerIndex =
-        (state.currentPlayerIndex + 1) % state.players.length;
+    case "NEXT_QUESTION": {
       const nextQuestionIndex =
         (state.currentQuestionIndex + 1) % state.quiz.questions.length;
       const winner = state.players.find(
@@ -128,7 +127,6 @@ function gameReducer(state: GameState, action: Action): GameState {
       );
       return {
         ...state,
-        currentPlayerIndex: nextPlayerIndex,
         currentQuestionIndex: nextQuestionIndex,
         answeredCorrectly: null,
         phase: winner ? "finished" : state.phase,
@@ -142,7 +140,6 @@ function gameReducer(state: GameState, action: Action): GameState {
         phase: "playing",
         players: state.players.map((p) => ({ ...p, position: 0 })),
         currentQuestionIndex: 0,
-        currentPlayerIndex: 0,
         answeredCorrectly: null,
       };
 
@@ -161,6 +158,8 @@ interface GameContextType {
   state: GameState;
   dispatch: React.Dispatch<Action>;
   isLoading: boolean;
+  hasSavedGame: boolean;
+  resumeGame: () => void;
 }
 
 const GameContext = createContext<GameContextType | null>(null);
@@ -168,33 +167,42 @@ const GameContext = createContext<GameContextType | null>(null);
 export function GameProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(gameReducer, initialState);
   const [isLoading, setIsLoading] = useState(true);
+  const [savedGame, setSavedGame] = useState<GameState | null>(null);
 
-  // Restore state from IndexedDB on mount
+  // Load saved state on mount (don't auto-restore — let user choose)
   useEffect(() => {
     loadState<GameState>()
       .then((saved) => {
         if (saved && saved.phase !== "menu") {
-          dispatch({ type: "RESTORE_STATE", state: saved });
+          // Strip legacy fields
+          const { currentPlayerIndex: _, ...clean } = saved as GameState & { currentPlayerIndex?: number };
+          setSavedGame({ ...initialState, ...clean } as GameState);
         }
       })
-      .catch(() => {
-        // IndexedDB unavailable — start fresh
-      })
+      .catch(() => {})
       .finally(() => setIsLoading(false));
   }, []);
+
+  function resumeGame() {
+    if (savedGame) {
+      dispatch({ type: "RESTORE_STATE", state: savedGame });
+      setSavedGame(null);
+    }
+  }
 
   // Persist state to IndexedDB on every change (skip while loading)
   useEffect(() => {
     if (isLoading) return;
     if (state.phase === "menu") {
-      clearState().catch(() => {});
+      // Only clear if user explicitly reset (no pending saved game)
+      if (!savedGame) clearState().catch(() => {});
     } else {
       saveState(state).catch(() => {});
     }
-  }, [state, isLoading]);
+  }, [state, isLoading, savedGame]);
 
   return (
-    <GameContext.Provider value={{ state, dispatch, isLoading }}>
+    <GameContext.Provider value={{ state, dispatch, isLoading, hasSavedGame: !!savedGame, resumeGame }}>
       {children}
     </GameContext.Provider>
   );

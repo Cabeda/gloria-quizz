@@ -9,7 +9,7 @@ export function PlayerSetup() {
 
   function addPlayer() {
     const trimmed = name.trim();
-    if (!trimmed || state.players.length >= 8) return;
+    if (!trimmed || state.players.length >= 10) return;
     dispatch({ type: "ADD_PLAYER", name: trimmed });
     setName("");
   }
@@ -34,7 +34,7 @@ export function PlayerSetup() {
       </div>
 
       <p className="text-gloria-brown-light mb-4">
-        Adiciona entre 2 e 8 jogadores para começar!
+        Adiciona entre 2 e 10 jogadores para começar!
       </p>
 
       <div className="flex gap-2 mb-6">
@@ -49,7 +49,7 @@ export function PlayerSetup() {
         <button
           className="retro-button retro-button-secondary py-2 px-5 text-sm"
           onClick={addPlayer}
-          disabled={!name.trim() || state.players.length >= 8}
+          disabled={!name.trim() || state.players.length >= 10}
         >
           Adicionar
         </button>

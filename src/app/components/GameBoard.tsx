@@ -170,7 +170,6 @@ export function GameBoard() {
   const [movedUpIds, setMovedUpIds] = useState<Set<string>>(new Set());
   const boardRef = useRef<HTMLDivElement>(null);
 
-  const currentPlayer = state.players[state.currentPlayerIndex];
   const currentQuestion = state.quiz.questions[state.currentQuestionIndex];
 
   const rankedPlayers = useMemo(
@@ -208,22 +207,11 @@ export function GameBoard() {
   }
 
   function handleSubmitAnswer() {
-    const isCorrect =
-      selectedAnswer.trim().toLowerCase() ===
-      (currentQuestion.correctAnswer || "").trim().toLowerCase();
-    if (isCorrect) {
-      dispatch({ type: "ANSWER_CORRECT" });
-      dispatch({ type: "ADVANCE_PLAYER", playerId: currentPlayer.id, steps: 1 + Math.floor(Math.random() * 3) });
-      setHoppingPlayerId(currentPlayer.id);
-      setTimeout(() => setHoppingPlayerId(null), 500);
-    } else {
-      dispatch({ type: "ANSWER_WRONG" });
-    }
     setShowResult(true);
   }
 
-  function handleNextTurn() {
-    dispatch({ type: "NEXT_TURN" });
+  function handleNextQuestion() {
+    dispatch({ type: "NEXT_QUESTION" });
     setShowQuestion(false);
     setSelectedAnswer("");
     setShowResult(false);
@@ -301,18 +289,18 @@ export function GameBoard() {
   }
 
   return (
-    <div className="w-full h-screen flex flex-col lg:flex-row gap-4 p-2 overflow-hidden">
+    <div className="w-full h-screen flex flex-col lg:flex-row gap-2 p-1 overflow-hidden">
       {/* Board */}
-      <div className="flex-1 flex items-center justify-center min-h-0">
-        <div className="board-frame checkered-border rounded-2xl" style={{ padding: 12 }}>
+      <div className="flex-1 flex items-center justify-center min-h-0 min-w-0">
+        <div className="board-frame checkered-border rounded-2xl" style={{ padding: 8, maxHeight: '100%', maxWidth: '100%' }}>
           <div
             ref={boardRef}
-            className="board-inner rounded-xl p-4"
+            className="board-inner rounded-xl p-3"
             style={{ background: "linear-gradient(145deg, #4a7c59 0%, #3d6b4a 50%, #2d5a3a 100%)" }}
           >
             {/* Title */}
             <h2
-              className="text-2xl lg:text-3xl font-extrabold text-center mb-3 drop-shadow-lg"
+              className="text-xl lg:text-2xl font-extrabold text-center mb-2 drop-shadow-lg"
               style={{ fontFamily: "Georgia, serif", color: "#fdf2e0", textShadow: "2px 2px 4px rgba(0,0,0,0.4)" }}
             >
               Quem conhece a Graça?
@@ -324,15 +312,15 @@ export function GameBoard() {
                 const { row, col } = getCellGridPosition(i);
                 const theme = CELL_THEMES[i];
                 const playersHere = getPlayersAtPosition(i);
-                const isCurrentPlayerHere = playersHere.some((p) => p.id === currentPlayer?.id);
                 const isFinish = i === TOTAL_CELLS - 1;
                 const arrow = getArrow(i);
+                const tokenSize = playersHere.length > 8 ? 14 : playersHere.length > 4 ? 18 : 22;
 
                 return (
                   <div
                     key={i}
                     data-cell-index={i}
-                    className={`board-cell ${theme ? "board-cell--special" : ""} ${isCurrentPlayerHere ? "board-cell--active" : ""} ${isFinish ? "board-cell--finish" : ""}`}
+                    className={`board-cell ${theme ? "board-cell--special" : ""} ${isFinish ? "board-cell--finish" : ""}`}
                     style={{
                       gridRow: row,
                       gridColumn: col,
@@ -358,13 +346,16 @@ export function GameBoard() {
                           <div
                             key={player.id}
                             className={`board-token ${hoppingPlayerId === player.id ? "animate-hop" : ""}`}
-                            style={{ backgroundColor: player.color }}
+                            style={{ backgroundColor: player.color, width: tokenSize, height: tokenSize, fontSize: tokenSize * 0.5 }}
                             onMouseDown={(e) => handleDragStart(e, player)}
                             onTouchStart={(e) => handleDragStart(e, player)}
-                            title={player.name}
+                            data-player-name={player.name}
                           >
                             <span className="board-token__initial">
                               {player.name[0]}
+                            </span>
+                            <span className="board-token__emoji">
+                              {player.emoji}
                             </span>
                           </div>
                         ))}
@@ -379,7 +370,7 @@ export function GameBoard() {
       </div>
 
       {/* Sidebar */}
-      <div className="lg:w-80 flex flex-col gap-3 min-h-0 shrink-0 overflow-hidden">
+      <div className="lg:w-72 flex flex-col gap-2 min-h-0 shrink-0 overflow-hidden">
         {/* Ranking */}
         <div className="retro-card p-4 flex flex-col min-h-0 flex-1">
           <h3 className="text-lg font-bold text-gloria-brown mb-3 flex items-center gap-2 shrink-0">
@@ -387,15 +378,12 @@ export function GameBoard() {
           </h3>
           <div className="space-y-2 overflow-y-auto min-h-0">
             {rankedPlayers.map((player, i) => {
-              const isCurrentTurn = player.id === currentPlayer?.id;
               const justMovedUp = movedUpIds.has(player.id);
               const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : null;
               return (
                 <div
                   key={player.id}
-                  className={`flex items-center gap-2 p-2 rounded-lg border-2 transition-all duration-500 ${
-                    isCurrentTurn ? "bg-gloria-cream border-gloria-brown-light" : "bg-gloria-cream border-transparent"
-                  } ${justMovedUp ? "animate-rank-up" : ""}`}
+                  className={`flex items-center gap-2 p-2 rounded-lg border-2 transition-all duration-500 bg-gloria-cream border-transparent ${justMovedUp ? "animate-rank-up" : ""}`}
                 >
                   <span className={`w-7 text-center font-extrabold text-lg ${justMovedUp ? "animate-bounce-in" : ""}`}>
                     {medal || `${i + 1}.`}
@@ -417,7 +405,6 @@ export function GameBoard() {
                     Casa {player.position}
                   </span>
                   {justMovedUp && <span className="text-green-500 text-sm font-bold animate-bounce-in">▲</span>}
-                  {isCurrentTurn && <span className="text-xs text-gloria-brown-light font-bold">← Vez</span>}
                 </div>
               );
             })}
@@ -429,8 +416,8 @@ export function GameBoard() {
           {!showQuestion ? (
             <div className="text-center">
               <div className="text-4xl mb-3">🎲</div>
-              <p className="text-gloria-brown font-bold text-lg mb-1">Vez de {currentPlayer?.name}</p>
-              <p className="text-gloria-brown-light text-sm mb-4">Responde corretamente para avançar!</p>
+              <p className="text-gloria-brown font-bold text-lg mb-1">Pergunta {state.currentQuestionIndex + 1}/{state.quiz.questions.length}</p>
+              <p className="text-gloria-brown-light text-sm mb-4">Quem responde primeiro, avança!</p>
               <button className="retro-button w-full" onClick={handleAskQuestion}>Ver Pergunta</button>
             </div>
           ) : (
@@ -445,62 +432,44 @@ export function GameBoard() {
 
               {!showResult ? (
                 <>
-                  {currentQuestion?.type === "open-ended" ? (
-                    <div className="mb-4">
-                      <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4 text-center mb-4">
-                        <div className="text-3xl mb-2">🗣️</div>
-                        <p className="text-blue-800 font-bold text-sm">Pergunta aberta!</p>
-                        <p className="text-blue-600 text-sm mt-1">
-                          Lê a pergunta em voz alta. Arrasta no tabuleiro os jogadores que acertarem.
-                        </p>
-                      </div>
-                      <button className="retro-button retro-button-secondary w-full" onClick={handleNextTurn}>
-                        Próxima Pergunta
-                      </button>
-                    </div>
-                  ) : currentQuestion?.type === "multiple-choice" && currentQuestion.options ? (
+                  {currentQuestion?.type === "multiple-choice" && currentQuestion.options ? (
                     <div className="space-y-2 mb-4">
                       {currentQuestion.options.map((opt, i) => (
-                        <button
+                        <div
                           key={i}
-                          className={`w-full text-left p-3 rounded-lg border-2 transition-all ${
-                            selectedAnswer === opt
-                              ? "bg-gloria-tan border-gloria-brown font-bold"
-                              : "bg-gloria-cream border-gloria-tan hover:border-gloria-brown-light"
-                          }`}
-                          onClick={() => setSelectedAnswer(opt)}
+                          className="w-full text-left p-3 rounded-lg border-2 bg-gloria-cream border-gloria-tan"
                         >
                           <span className="text-gloria-brown-light font-bold mr-2">{String.fromCharCode(65 + i)}.</span>
                           <span className="text-gloria-brown">{opt}</span>
-                        </button>
+                        </div>
                       ))}
                     </div>
-                  ) : null}
+                  ) : (
+                    <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4 text-center mb-4">
+                      <div className="text-3xl mb-2">🗣️</div>
+                      <p className="text-blue-800 font-bold text-sm">Pergunta aberta!</p>
+                      <p className="text-blue-600 text-sm mt-1">Lê em voz alta.</p>
+                    </div>
+                  )}
                   {currentQuestion?.type === "multiple-choice" && (
-                    <button className="retro-button retro-button-green w-full" onClick={handleSubmitAnswer} disabled={!selectedAnswer.trim()}>
-                      Responder
+                    <button className="retro-button retro-button-green w-full mb-2" onClick={handleSubmitAnswer}>
+                      Revelar Resposta
                     </button>
                   )}
+                  <button className="retro-button retro-button-secondary w-full" onClick={handleNextQuestion}>
+                    Próxima Pergunta
+                  </button>
                 </>
               ) : (
                 <div className="animate-bounce-in">
-                  {state.answeredCorrectly ? (
-                    <div className="bg-green-50 border-2 border-green-300 rounded-xl p-4 text-center mb-4">
-                      <div className="text-4xl mb-2">🎉</div>
-                      <p className="text-green-800 font-bold text-lg">Correto!</p>
-                      <p className="text-green-600 text-sm">{currentPlayer?.name} avança no tabuleiro!</p>
-                    </div>
-                  ) : (
-                    <div className="bg-red-50 border-2 border-red-300 rounded-xl p-4 text-center mb-4">
-                      <div className="text-4xl mb-2">😅</div>
-                      <p className="text-red-800 font-bold text-lg">Errado!</p>
-                      <p className="text-red-600 text-sm">
-                        A resposta era: <span className="font-bold">{currentQuestion?.correctAnswer}</span>
-                      </p>
-                    </div>
-                  )}
-                  <button className="retro-button retro-button-secondary w-full" onClick={handleNextTurn}>
-                    Próximo Jogador
+                  <div className="bg-green-50 border-2 border-green-300 rounded-xl p-4 text-center mb-4">
+                    <div className="text-4xl mb-2">✅</div>
+                    <p className="text-green-800 font-bold text-lg">Resposta:</p>
+                    <p className="text-green-700 font-bold text-xl mt-1">{currentQuestion?.correctAnswer}</p>
+                    <p className="text-green-600 text-sm mt-2">Arrasta quem acertou no tabuleiro!</p>
+                  </div>
+                  <button className="retro-button retro-button-secondary w-full" onClick={handleNextQuestion}>
+                    Próxima Pergunta
                   </button>
                 </div>
               )}

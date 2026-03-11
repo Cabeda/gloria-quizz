@@ -26,7 +26,6 @@ export interface GameState {
   quiz: Quiz;
   players: Player[];
   currentQuestionIndex: number;
-  currentPlayerIndex: number;
   totalPositions: number;
   answeredCorrectly: boolean | null;
 }

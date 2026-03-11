@@ -167,9 +167,11 @@ body {
 
 .board-grid {
   display: grid;
-  grid-template-columns: repeat(7, minmax(70px, 110px));
-  grid-template-rows: repeat(5, minmax(70px, 110px));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-rows: repeat(5, minmax(0, 1fr));
   gap: 6px;
+  width: min(calc(100vw - 320px), 95vh * 7 / 5);
+  height: min(calc(100vh - 60px), (100vw - 320px) * 5 / 7);
 }
 
 .board-cell {
@@ -184,7 +186,7 @@ body {
   box-shadow: inset 0 2px 4px rgba(255,255,255,0.25), 2px 2px 0 #4a3520;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   cursor: default;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .board-cell:hover {
@@ -258,12 +260,39 @@ body {
   justify-content: center;
   cursor: grab;
   box-shadow: 1px 1px 3px rgba(0,0,0,0.3);
-  transition: transform 0.2s;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s;
   user-select: none;
+  position: relative;
+  z-index: 1;
 }
 
 .board-token:hover {
-  transform: scale(1.2);
+  transform: scale(2.2);
+  box-shadow: 0 0 0 3px rgba(255,255,255,0.6), 0 4px 12px rgba(0,0,0,0.4);
+  z-index: 20;
+}
+
+.board-token:hover::after {
+  content: attr(data-player-name);
+  position: absolute;
+  top: 105%;
+  left: 50%;
+  transform: translateX(-50%) scale(calc(1 / 2.2));
+  background: #3d2b1a;
+  color: #fdf2e0;
+  font-size: 18px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: magnify-pop 0.2s ease-out;
+  z-index: 30;
+}
+
+@keyframes magnify-pop {
+  from { opacity: 0; transform: translateX(-50%) scale(calc(0.3 / 2.2)); }
+  to { opacity: 1; transform: translateX(-50%) scale(calc(1 / 2.2)); }
 }
 
 .board-token:active {
@@ -272,11 +301,27 @@ body {
 }
 
 .board-token__initial {
-  font-size: 10px;
+  font-size: inherit;
   font-weight: 800;
   color: #fff;
   text-shadow: 1px 1px 1px rgba(0,0,0,0.4);
   line-height: 1;
+}
+
+.board-token__emoji {
+  display: none;
+  font-size: 1.2em;
+  line-height: 1;
+}
+
+.board-token:hover .board-token__initial {
+  display: none;
+}
+
+.board-token:hover .board-token__emoji {
+  display: block;
+  animation: wave 1.5s ease-in-out infinite;
+  transform-origin: 70% 70%;
 }
 
 .confetti-piece {

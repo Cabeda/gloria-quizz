@@ -1,29 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useGame } from "../context/GameContext";
-import { loadState } from "../lib/persistence";
-import type { GameState } from "../types";
 
 export function MainMenu() {
-  const { dispatch } = useGame();
-  const [hasSavedGame, setHasSavedGame] = useState(false);
-
-  useEffect(() => {
-    loadState<GameState>().then((saved) => {
-      if (saved && saved.phase !== "menu") {
-        setHasSavedGame(true);
-      }
-    }).catch(() => {});
-  }, []);
-
-  function resumeGame() {
-    loadState<GameState>().then((saved) => {
-      if (saved) {
-        dispatch({ type: "RESTORE_STATE", state: saved });
-      }
-    }).catch(() => {});
-  }
+  const { dispatch, hasSavedGame, resumeGame } = useGame();
 
   return (
     <div className="retro-card p-12 text-center max-w-lg w-full animate-bounce-in">
