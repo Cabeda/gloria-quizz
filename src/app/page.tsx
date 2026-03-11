@@ -11,7 +11,7 @@ export default function Home() {
   const { state } = useGame();
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4">
+    <div className={state.phase === "playing" ? "h-screen overflow-hidden" : "min-h-screen flex flex-col items-center justify-center p-4"}>
       {state.phase === "menu" && <MainMenu />}
       {state.phase === "quiz-creator" && <QuizCreator />}
       {state.phase === "player-setup" && <PlayerSetup />}

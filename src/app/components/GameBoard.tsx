@@ -249,19 +249,20 @@ export function GameBoard() {
   }
 
   return (
-    <div className="w-full max-w-7xl mx-auto flex flex-col lg:flex-row gap-6 p-4">
+    <div className="w-full h-screen flex flex-col lg:flex-row gap-4 p-2 overflow-hidden">
       {/* Board */}
-      <div className="flex-1 flex items-center justify-center">
+      <div className="flex-1 flex items-center justify-center min-h-0">
         <div
-          className="rounded-3xl p-4 shadow-2xl relative"
+          className="rounded-3xl p-3 shadow-2xl relative w-full h-full max-h-[95vh] aspect-square mx-auto"
           style={{
             background: "linear-gradient(145deg, #4a7c59 0%, #3d6b4a 50%, #2d5a3a 100%)",
             border: "6px solid #2d4a35",
+            maxWidth: "95vh",
           }}
         >
           {/* Board title */}
           <h2
-            className="text-3xl font-extrabold text-center mb-2 drop-shadow-lg"
+            className="text-2xl lg:text-3xl font-extrabold text-center mb-1 drop-shadow-lg"
             style={{
               fontFamily: "Georgia, serif",
               color: "#fdf2e0",
@@ -274,7 +275,8 @@ export function GameBoard() {
           <svg
             ref={svgRef}
             viewBox={`0 0 ${BOARD_SIZE} ${BOARD_SIZE}`}
-            className="w-full max-w-[600px] mx-auto"
+            className="w-full h-full"
+            preserveAspectRatio="xMidYMid meet"
             style={{ filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.2))" }}
           >
             {/* Background circle */}
@@ -552,7 +554,7 @@ export function GameBoard() {
       </div>
 
       {/* Sidebar: current turn + question */}
-      <div className="lg:w-96 flex flex-col gap-4">
+      <div className="lg:w-80 flex flex-col gap-3 lg:max-h-screen lg:overflow-y-auto shrink-0">
         {/* Player ranking */}
         <div className="retro-card p-4">
           <h3 className="text-lg font-bold text-amber-900 mb-3 flex items-center gap-2">
