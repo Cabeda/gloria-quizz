@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useGame } from "../context/GameContext";
 import type { Player } from "../types";
 
@@ -52,12 +52,40 @@ export function GameBoard() {
   const [dragPos, setDragPos] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [hoppingPlayerId, setHoppingPlayerId] = useState<string | null>(null);
+  const [prevRanking, setPrevRanking] = useState<string[]>([]);
+  const [movedUpIds, setMovedUpIds] = useState<Set<string>>(new Set());
   const cellRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   const boardRef = useRef<HTMLDivElement>(null);
 
   const currentPlayer = state.players[state.currentPlayerIndex];
   const currentQuestion = state.quiz.questions[state.currentQuestionIndex];
   const totalRows = Math.ceil(TOTAL_CELLS / COLS);
+
+  // Sorted ranking by position (descending)
+  const rankedPlayers = useMemo(
+    () => [...state.players].sort((a, b) => b.position - a.position),
+    [state.players]
+  );
+
+  // Detect ranking changes and trigger animations
+  useEffect(() => {
+    const currentRanking = rankedPlayers.map((p) => p.id);
+    if (prevRanking.length > 0) {
+      const newMovedUp = new Set<string>();
+      currentRanking.forEach((id, newIdx) => {
+        const oldIdx = prevRanking.indexOf(id);
+        if (oldIdx > newIdx && oldIdx !== -1) {
+          newMovedUp.add(id);
+        }
+      });
+      if (newMovedUp.size > 0) {
+        setMovedUpIds(newMovedUp);
+        const timer = setTimeout(() => setMovedUpIds(new Set()), 1000);
+        return () => clearTimeout(timer);
+      }
+    }
+    setPrevRanking(currentRanking);
+  }, [rankedPlayers]);
 
   const winner = state.players.find((p) => p.position >= state.totalPositions);
 
@@ -305,46 +333,83 @@ export function GameBoard() {
 
       {/* Sidebar: current turn + question */}
       <div className="lg:w-96 flex flex-col gap-4">
-        {/* Player scoreboard */}
+        {/* Player ranking */}
         <div className="retro-card p-4">
-          <h3 className="text-lg font-bold text-amber-900 mb-3">Jogadores</h3>
+          <h3 className="text-lg font-bold text-amber-900 mb-3 flex items-center gap-2">
+            <span>🏅</span> Classificação
+          </h3>
           <div className="space-y-2">
-            {state.players.map((player, i) => (
-              <div
-                key={player.id}
-                className={`flex items-center gap-2 p-2 rounded-lg transition-all ${
-                  i === state.currentPlayerIndex
-                    ? "bg-amber-100 border-2 border-amber-400"
-                    : "bg-amber-50 border-2 border-transparent"
-                }`}
-              >
+            {rankedPlayers.map((player, i) => {
+              const isCurrentTurn = player.id === currentPlayer?.id;
+              const justMovedUp = movedUpIds.has(player.id);
+              const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : null;
+
+              return (
                 <div
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-sm border-2"
+                  key={player.id}
+                  className={`flex items-center gap-2 p-2 rounded-lg border-2 transition-all duration-500 ease-in-out ${
+                    isCurrentTurn
+                      ? "bg-amber-100 border-amber-400"
+                      : "bg-amber-50 border-transparent"
+                  } ${justMovedUp ? "animate-rank-up" : ""}`}
                   style={{
-                    backgroundColor: player.color,
-                    borderColor: "white",
+                    order: i,
+                    transform: justMovedUp ? undefined : "translateY(0)",
                   }}
                 >
-                  <span
-                    className="animate-wave"
-                    style={{ animationDelay: `${i * 0.4}s` }}
+                  {/* Rank number / medal */}
+                  <span className={`w-7 text-center font-extrabold text-lg ${justMovedUp ? "animate-bounce-in" : ""}`}>
+                    {medal || `${i + 1}.`}
+                  </span>
+
+                  {/* Player avatar */}
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm border-2 ${justMovedUp ? "animate-hop" : ""}`}
+                    style={{
+                      backgroundColor: player.color,
+                      borderColor: "white",
+                    }}
                   >
-                    {player.emoji}
+                    <span
+                      className="animate-wave"
+                      style={{ animationDelay: `${i * 0.4}s` }}
+                    >
+                      {player.emoji}
+                    </span>
+                  </div>
+
+                  {/* Name */}
+                  <span className="flex-1 font-bold text-amber-900 text-sm truncate">
+                    {player.name}
                   </span>
+
+                  {/* Position badge */}
+                  <span
+                    className={`text-xs px-2 py-0.5 rounded-full font-bold transition-all duration-300 ${
+                      justMovedUp
+                        ? "bg-green-200 text-green-800 scale-110"
+                        : "bg-amber-200 text-amber-800"
+                    }`}
+                  >
+                    Casa {player.position}
+                  </span>
+
+                  {/* Move up arrow */}
+                  {justMovedUp && (
+                    <span className="text-green-500 text-sm font-bold animate-bounce-in">
+                      ▲
+                    </span>
+                  )}
+
+                  {/* Current turn indicator */}
+                  {isCurrentTurn && (
+                    <span className="text-xs text-amber-600 font-bold">
+                      ← Vez
+                    </span>
+                  )}
                 </div>
-                <span className="flex-1 font-bold text-amber-900 text-sm">
-                  {player.name}
-                </span>
-                <span className="text-xs bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full font-bold">
-                  Casa {player.position}
-                </span>
-                {i === state.currentPlayerIndex && (
-                  <span className="text-xs text-amber-600 font-bold">
-                    ← Vez
-                  </span>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
