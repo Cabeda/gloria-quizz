@@ -1,22 +1,24 @@
-import { getDb } from "@/app/lib/db";
+import { prisma } from "@/app/lib/prisma";
 import { NextResponse } from "next/server";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
-  const sql = getDb();
 
-  const playerRows = await sql`SELECT * FROM players WHERE room_id = ${code} ORDER BY joined_at`;
+  const players = await prisma.player.findMany({
+    where: { roomId: code },
+    orderBy: { joinedAt: "asc" },
+  });
 
   return NextResponse.json(
-    playerRows.map((p) => ({
+    players.map((p) => ({
       id: p.id,
-      roomId: p.room_id,
+      roomId: p.roomId,
       name: p.name,
       emoji: p.emoji,
       color: p.color,
       score: p.score,
-      isConnected: p.is_connected,
-      joinedAt: p.joined_at,
+      isConnected: p.isConnected,
+      joinedAt: p.joinedAt,
     }))
   );
 }

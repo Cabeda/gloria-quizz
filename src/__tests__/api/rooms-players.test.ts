@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { mockSql } from "../setup";
+import { mockPrisma, resetMocks } from "../setup";
 import { GET } from "@/app/api/rooms/[code]/players/route";
 
 function makeRequest(code: string) {
@@ -11,15 +11,15 @@ function makeRequest(code: string) {
 
 describe("GET /api/rooms/[code]/players", () => {
   beforeEach(() => {
-    mockSql.clearHandlers();
-    mockSql.mockQuery(/SELECT \* FROM players/, [
+    resetMocks();
+    mockPrisma.player.findMany.mockResolvedValue([
       {
-        id: "p1", room_id: "ABC123", name: "Alice", emoji: "🧒",
-        color: "#e74c3c", score: 5, is_connected: true, joined_at: "2025-01-01",
+        id: "p1", roomId: "ABC123", name: "Alice", emoji: "🧒",
+        color: "#e74c3c", score: 5, isConnected: true, joinedAt: "2025-01-01",
       },
       {
-        id: "p2", room_id: "ABC123", name: "Bob", emoji: "👦",
-        color: "#3498db", score: 3, is_connected: true, joined_at: "2025-01-01",
+        id: "p2", roomId: "ABC123", name: "Bob", emoji: "👦",
+        color: "#3498db", score: 3, isConnected: true, joinedAt: "2025-01-01",
       },
     ]);
   });
@@ -36,8 +36,7 @@ describe("GET /api/rooms/[code]/players", () => {
   });
 
   it("returns empty array if no players", async () => {
-    mockSql.clearHandlers();
-    mockSql.mockQuery(/SELECT \* FROM players/, []);
+    mockPrisma.player.findMany.mockResolvedValue([]);
     const { request, params } = makeRequest("ABC123");
     const res = await GET(request, { params });
     expect(res.status).toBe(200);

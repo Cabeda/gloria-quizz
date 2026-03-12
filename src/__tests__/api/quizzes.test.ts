@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { mockSql } from "../setup";
+import { mockPrisma, resetMocks } from "../setup";
 import { POST } from "@/app/api/quizzes/route";
 
 function makeRequest(body: unknown) {
@@ -12,10 +12,8 @@ function makeRequest(body: unknown) {
 
 describe("POST /api/quizzes", () => {
   beforeEach(() => {
-    mockSql.clearHandlers();
-    // Default: INSERT succeeds
-    mockSql.mockQuery(/INSERT INTO quizzes/, []);
-    mockSql.mockQuery(/INSERT INTO questions/, []);
+    resetMocks();
+    mockPrisma.quiz.create.mockResolvedValue({ id: "test-id-1234" });
   });
 
   it("creates a quiz with valid data", async () => {
@@ -30,6 +28,7 @@ describe("POST /api/quizzes", () => {
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.id).toBe("test-id-1234");
+    expect(mockPrisma.quiz.create).toHaveBeenCalledOnce();
   });
 
   it("returns 400 if title is missing", async () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { mockSql } from "../setup";
+import { mockPrisma, resetMocks } from "../setup";
 import { POST } from "@/app/api/rooms/[code]/answer/route";
 
 function makeRequest(code: string, body: unknown) {
@@ -15,16 +15,14 @@ function makeRequest(code: string, body: unknown) {
 
 describe("POST /api/rooms/[code]/answer", () => {
   beforeEach(() => {
-    mockSql.clearHandlers();
-    mockSql.mockQuery(/SELECT \* FROM rooms/, [
-      { id: "ABC123", question_open: true },
-    ]);
-    mockSql.mockQuery(/SELECT id FROM answers/, []); // not answered yet
-    mockSql.mockQuery(/SELECT \* FROM questions/, [
-      { id: "q1", type: "multiple-choice", correct_answer: "Paris", points: 2 },
-    ]);
-    mockSql.mockQuery(/INSERT INTO answers/, []);
-    mockSql.mockQuery(/UPDATE players/, []);
+    resetMocks();
+    mockPrisma.room.findUnique.mockResolvedValue({ id: "ABC123", questionOpen: true });
+    mockPrisma.answer.findFirst.mockResolvedValue(null); // not answered yet
+    mockPrisma.question.findUnique.mockResolvedValue({
+      id: "q1", type: "multiple-choice", correctAnswer: "Paris", points: 2,
+    });
+    mockPrisma.answer.create.mockResolvedValue({ id: "test-id-1234" });
+    mockPrisma.player.update.mockResolvedValue({});
   });
 
   it("accepts a correct MC answer and awards points", async () => {
@@ -52,13 +50,9 @@ describe("POST /api/rooms/[code]/answer", () => {
   });
 
   it("returns null isCorrect for open-ended questions", async () => {
-    mockSql.clearHandlers();
-    mockSql.mockQuery(/SELECT \* FROM rooms/, [{ id: "ABC123", question_open: true }]);
-    mockSql.mockQuery(/SELECT id FROM answers/, []);
-    mockSql.mockQuery(/SELECT \* FROM questions/, [
-      { id: "q2", type: "open-ended", correct_answer: null, points: 1 },
-    ]);
-    mockSql.mockQuery(/INSERT INTO answers/, []);
+    mockPrisma.question.findUnique.mockResolvedValue({
+      id: "q2", type: "open-ended", correctAnswer: null, points: 1,
+    });
 
     const { request, params } = makeRequest("ABC123", {
       playerId: "p1",
@@ -90,8 +84,7 @@ describe("POST /api/rooms/[code]/answer", () => {
   });
 
   it("returns 404 if room not found", async () => {
-    mockSql.clearHandlers();
-    mockSql.mockQuery(/SELECT \* FROM rooms/, []);
+    mockPrisma.room.findUnique.mockResolvedValue(null);
     const { request, params } = makeRequest("NOPE", {
       playerId: "p1",
       questionId: "q1",
@@ -102,10 +95,7 @@ describe("POST /api/rooms/[code]/answer", () => {
   });
 
   it("returns 400 if question is closed", async () => {
-    mockSql.clearHandlers();
-    mockSql.mockQuery(/SELECT \* FROM rooms/, [
-      { id: "ABC123", question_open: false },
-    ]);
+    mockPrisma.room.findUnique.mockResolvedValue({ id: "ABC123", questionOpen: false });
     const { request, params } = makeRequest("ABC123", {
       playerId: "p1",
       questionId: "q1",
@@ -118,9 +108,7 @@ describe("POST /api/rooms/[code]/answer", () => {
   });
 
   it("returns 400 if already answered", async () => {
-    mockSql.clearHandlers();
-    mockSql.mockQuery(/SELECT \* FROM rooms/, [{ id: "ABC123", question_open: true }]);
-    mockSql.mockQuery(/SELECT id FROM answers/, [{ id: "existing" }]);
+    mockPrisma.answer.findFirst.mockResolvedValue({ id: "existing" });
     const { request, params } = makeRequest("ABC123", {
       playerId: "p1",
       questionId: "q1",
@@ -133,10 +121,7 @@ describe("POST /api/rooms/[code]/answer", () => {
   });
 
   it("returns 404 if question not found", async () => {
-    mockSql.clearHandlers();
-    mockSql.mockQuery(/SELECT \* FROM rooms/, [{ id: "ABC123", question_open: true }]);
-    mockSql.mockQuery(/SELECT id FROM answers/, []);
-    mockSql.mockQuery(/SELECT \* FROM questions/, []);
+    mockPrisma.question.findUnique.mockResolvedValue(null);
     const { request, params } = makeRequest("ABC123", {
       playerId: "p1",
       questionId: "nope",

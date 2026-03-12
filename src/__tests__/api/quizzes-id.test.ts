@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { mockSql } from "../setup";
+import { mockPrisma, resetMocks } from "../setup";
 import { GET, PUT } from "@/app/api/quizzes/[id]/route";
 
 function makeGetRequest(id: string) {
@@ -22,19 +22,18 @@ function makePutRequest(id: string, body: unknown) {
 
 describe("GET /api/quizzes/[id]", () => {
   beforeEach(() => {
-    mockSql.clearHandlers();
+    resetMocks();
   });
 
   it("returns quiz with questions", async () => {
-    mockSql.mockQuery(/SELECT \* FROM quizzes/, [
-      { id: "q1", title: "Test Quiz", created_at: "2025-01-01" },
-    ]);
-    mockSql.mockQuery(/SELECT \* FROM questions/, [
-      {
-        id: "qn1", text: "What?", type: "multiple-choice",
-        options: ["A", "B"], correct_answer: "A", points: 1, sort_order: 0,
-      },
-    ]);
+    mockPrisma.quiz.findUnique.mockResolvedValue({
+      id: "q1",
+      title: "Test Quiz",
+      createdAt: "2025-01-01",
+      questions: [
+        { id: "qn1", text: "What?", type: "multiple-choice", options: ["A", "B"], correctAnswer: "A", points: 1, sortOrder: 0 },
+      ],
+    });
 
     const { request, params } = makeGetRequest("q1");
     const res = await GET(request, { params });
@@ -47,7 +46,7 @@ describe("GET /api/quizzes/[id]", () => {
   });
 
   it("returns 404 for unknown quiz", async () => {
-    mockSql.mockQuery(/SELECT \* FROM quizzes/, []);
+    mockPrisma.quiz.findUnique.mockResolvedValue(null);
     const { request, params } = makeGetRequest("nope");
     const res = await GET(request, { params });
     expect(res.status).toBe(404);
@@ -56,11 +55,8 @@ describe("GET /api/quizzes/[id]", () => {
 
 describe("PUT /api/quizzes/[id]", () => {
   beforeEach(() => {
-    mockSql.clearHandlers();
-    mockSql.mockQuery(/SELECT \* FROM quizzes/, [{ id: "q1" }]);
-    mockSql.mockQuery(/UPDATE quizzes/, []);
-    mockSql.mockQuery(/DELETE FROM questions/, []);
-    mockSql.mockQuery(/INSERT INTO questions/, []);
+    resetMocks();
+    mockPrisma.quiz.findUnique.mockResolvedValue({ id: "q1" });
   });
 
   it("updates title and questions", async () => {
@@ -75,8 +71,7 @@ describe("PUT /api/quizzes/[id]", () => {
   });
 
   it("returns 404 for unknown quiz", async () => {
-    mockSql.clearHandlers();
-    mockSql.mockQuery(/SELECT \* FROM quizzes/, []);
+    mockPrisma.quiz.findUnique.mockResolvedValue(null);
     const { request, params } = makePutRequest("nope", { title: "X" });
     const res = await PUT(request, { params });
     expect(res.status).toBe(404);

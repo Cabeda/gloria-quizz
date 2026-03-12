@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { mockSql } from "../setup";
+import { mockPrisma, resetMocks } from "../setup";
 import { POST } from "@/app/api/rooms/route";
 
 function makeRequest(body: unknown) {
@@ -12,10 +12,10 @@ function makeRequest(body: unknown) {
 
 describe("POST /api/rooms", () => {
   beforeEach(() => {
-    mockSql.clearHandlers();
-    mockSql.mockQuery(/SELECT id FROM quizzes/, [{ id: "quiz1" }]);
-    mockSql.mockQuery(/SELECT id FROM rooms/, []); // no collision
-    mockSql.mockQuery(/INSERT INTO rooms/, []);
+    resetMocks();
+    mockPrisma.quiz.findUnique.mockResolvedValue({ id: "quiz1" });
+    mockPrisma.room.findUnique.mockResolvedValue(null); // no collision
+    mockPrisma.room.create.mockResolvedValue({ id: "ABC123" });
   });
 
   it("creates a room for a valid quiz", async () => {
@@ -34,22 +34,17 @@ describe("POST /api/rooms", () => {
   });
 
   it("returns 404 if quiz does not exist", async () => {
-    mockSql.clearHandlers();
-    mockSql.mockQuery(/SELECT id FROM quizzes/, []);
+    mockPrisma.quiz.findUnique.mockResolvedValue(null);
     const res = await POST(makeRequest({ quizId: "nope" }));
     expect(res.status).toBe(404);
   });
 
   it("retries room code on collision", async () => {
-    mockSql.clearHandlers();
-    mockSql.mockQuery(/SELECT id FROM quizzes/, [{ id: "quiz1" }]);
     let callCount = 0;
-    mockSql.mockQuery(/SELECT id FROM rooms/, () => {
+    mockPrisma.room.findUnique.mockImplementation(() => {
       callCount++;
-      // First call: collision, second call: no collision
-      return callCount <= 1 ? [{ id: "TAKEN1" }] : [];
+      return Promise.resolve(callCount <= 1 ? { id: "TAKEN1" } : null);
     });
-    mockSql.mockQuery(/INSERT INTO rooms/, []);
     const res = await POST(makeRequest({ quizId: "quiz1" }));
     expect(res.status).toBe(200);
     const data = await res.json();

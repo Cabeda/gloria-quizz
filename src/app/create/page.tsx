@@ -206,7 +206,7 @@ export default function CreateQuizPage() {
                       <input
                         type="radio"
                         name={`correct-${qIdx}`}
-                        checked={q.correctAnswer === opt && opt.trim() !== ""}
+                        checked={q.correctAnswer !== "" && q.correctAnswer === opt}
                         onChange={() => updateQuestion(qIdx, { correctAnswer: opt })}
                         className="w-4 h-4 accent-green-600"
                       />

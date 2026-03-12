@@ -1,38 +1,47 @@
-import { getDb } from "@/app/lib/db";
+import { prisma } from "@/app/lib/prisma";
 import { NextResponse } from "next/server";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
-  const sql = getDb();
 
-  const roomRows = await sql`SELECT current_question_index, quiz_id FROM rooms WHERE id = ${code}`;
-  if (roomRows.length === 0) {
+  const room = await prisma.room.findUnique({
+    where: { id: code },
+    select: { currentQuestionIndex: true, quizId: true },
+  });
+
+  if (!room) {
     return NextResponse.json({ error: "Room not found" }, { status: 404 });
   }
 
-  const questionRows = await sql`SELECT id FROM questions WHERE quiz_id = ${roomRows[0].quiz_id} ORDER BY sort_order`;
-  const currentQ = questionRows[roomRows[0].current_question_index];
+  const questions = await prisma.question.findMany({
+    where: { quizId: room.quizId },
+    orderBy: { sortOrder: "asc" },
+    select: { id: true },
+  });
+
+  const currentQ = questions[room.currentQuestionIndex ?? 0];
   if (!currentQ) {
     return NextResponse.json([]);
   }
 
-  const answerRows = await sql`SELECT a.*, p.name as player_name, p.emoji as player_emoji, p.color as player_color
-    FROM answers a JOIN players p ON a.player_id = p.id
-    WHERE a.room_id = ${code} AND a.question_id = ${currentQ.id}
-    ORDER BY a.answered_at`;
+  const answers = await prisma.answer.findMany({
+    where: { roomId: code, questionId: currentQ.id },
+    include: { player: true },
+    orderBy: { answeredAt: "asc" },
+  });
 
   return NextResponse.json(
-    answerRows.map((a) => ({
+    answers.map((a) => ({
       id: a.id,
-      roomId: a.room_id,
-      questionId: a.question_id,
-      playerId: a.player_id,
-      answerText: a.answer_text,
-      isCorrect: a.is_correct,
-      answeredAt: a.answered_at,
-      playerName: a.player_name,
-      playerEmoji: a.player_emoji,
-      playerColor: a.player_color,
+      roomId: a.roomId,
+      questionId: a.questionId,
+      playerId: a.playerId,
+      answerText: a.answerText,
+      isCorrect: a.isCorrect,
+      answeredAt: a.answeredAt,
+      playerName: a.player.name,
+      playerEmoji: a.player.emoji,
+      playerColor: a.player.color,
     }))
   );
 }

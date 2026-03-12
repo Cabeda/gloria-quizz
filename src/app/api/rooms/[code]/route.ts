@@ -1,77 +1,83 @@
-import { getDb } from "@/app/lib/db";
+import { prisma } from "@/app/lib/prisma";
 import { NextResponse } from "next/server";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
-  const sql = getDb();
 
-  const roomRows = await sql`SELECT * FROM rooms WHERE id = ${code}`;
-  if (roomRows.length === 0) {
+  const room = await prisma.room.findUnique({
+    where: { id: code },
+    include: {
+      quiz: {
+        include: {
+          questions: { orderBy: { sortOrder: "asc" } },
+        },
+      },
+      players: { orderBy: { joinedAt: "asc" } },
+    },
+  });
+
+  if (!room) {
     return NextResponse.json({ error: "Room not found" }, { status: 404 });
   }
-  const room = roomRows[0];
 
-  const quizRows = await sql`SELECT * FROM quizzes WHERE id = ${room.quiz_id}`;
-  const questionRows = await sql`SELECT * FROM questions WHERE quiz_id = ${room.quiz_id} ORDER BY sort_order`;
-  const playerRows = await sql`SELECT * FROM players WHERE room_id = ${code} ORDER BY joined_at`;
-
-  const questions = questionRows.map((q) => ({
+  const questions = room.quiz.questions.map((q) => ({
     id: q.id,
     text: q.text,
     type: q.type,
     options: q.options,
-    correctAnswer: q.correct_answer,
+    correctAnswer: q.correctAnswer,
     points: q.points,
-    sortOrder: q.sort_order,
+    sortOrder: q.sortOrder,
   }));
 
-  const currentQuestion = questions[room.current_question_index] || null;
+  const currentQuestion = questions[room.currentQuestionIndex ?? 0] || null;
 
-  // Get answers for current question
+  // Get answers for current question (only if there is one)
   let answers: Record<string, unknown>[] = [];
   if (currentQuestion) {
-    const answerRows = await sql`SELECT a.*, p.name as player_name, p.emoji as player_emoji, p.color as player_color
-      FROM answers a JOIN players p ON a.player_id = p.id
-      WHERE a.room_id = ${code} AND a.question_id = ${currentQuestion.id}
-      ORDER BY a.answered_at`;
+    const answerRows = await prisma.answer.findMany({
+      where: { roomId: code, questionId: currentQuestion.id },
+      include: { player: true },
+      orderBy: { answeredAt: "asc" },
+    });
     answers = answerRows.map((a) => ({
       id: a.id,
-      roomId: a.room_id,
-      questionId: a.question_id,
-      playerId: a.player_id,
-      answerText: a.answer_text,
-      isCorrect: a.is_correct,
-      answeredAt: a.answered_at,
-      playerName: a.player_name,
-      playerEmoji: a.player_emoji,
-      playerColor: a.player_color,
+      roomId: a.roomId,
+      questionId: a.questionId,
+      playerId: a.playerId,
+      answerText: a.answerText,
+      isCorrect: a.isCorrect,
+      answeredAt: a.answeredAt,
+      playerName: a.player.name,
+      playerEmoji: a.player.emoji,
+      playerColor: a.player.color,
     }));
   }
 
   return NextResponse.json({
     room: {
       id: room.id,
-      quizId: room.quiz_id,
+      quizId: room.quizId,
       phase: room.phase,
-      currentQuestionIndex: room.current_question_index,
-      questionOpen: room.question_open,
-      createdAt: room.created_at,
-      updatedAt: room.updated_at,
+      currentQuestionIndex: room.currentQuestionIndex,
+      questionOpen: room.questionOpen,
+      createdAt: room.createdAt,
+      updatedAt: room.updatedAt,
     },
     quiz: {
-      id: quizRows[0].id,
-      title: quizRows[0].title,
+      id: room.quiz.id,
+      title: room.quiz.title,
       questions,
     },
-    players: playerRows.map((p) => ({
+    players: room.players.map((p) => ({
       id: p.id,
-      roomId: p.room_id,
+      roomId: p.roomId,
       name: p.name,
       emoji: p.emoji,
       color: p.color,
       score: p.score,
-      isConnected: p.is_connected,
-      joinedAt: p.joined_at,
+      isConnected: p.isConnected,
+      joinedAt: p.joinedAt,
     })),
     currentQuestion,
     answers,
@@ -80,24 +86,19 @@ export async function GET(_request: Request, { params }: { params: Promise<{ cod
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
-  const sql = getDb();
   const body = await request.json();
-
-  const roomRows = await sql`SELECT * FROM rooms WHERE id = ${code}`;
-  if (roomRows.length === 0) {
-    return NextResponse.json({ error: "Room not found" }, { status: 404 });
-  }
 
   const { phase, currentQuestionIndex, questionOpen } = body;
 
-  if (phase !== undefined) {
-    await sql`UPDATE rooms SET phase = ${phase}, updated_at = now() WHERE id = ${code}`;
-  }
-  if (currentQuestionIndex !== undefined) {
-    await sql`UPDATE rooms SET current_question_index = ${currentQuestionIndex}, updated_at = now() WHERE id = ${code}`;
-  }
-  if (questionOpen !== undefined) {
-    await sql`UPDATE rooms SET question_open = ${questionOpen}, updated_at = now() WHERE id = ${code}`;
+  const updateData: Record<string, unknown> = { updatedAt: new Date() };
+  if (phase !== undefined) updateData.phase = phase;
+  if (currentQuestionIndex !== undefined) updateData.currentQuestionIndex = currentQuestionIndex;
+  if (questionOpen !== undefined) updateData.questionOpen = questionOpen;
+
+  try {
+    await prisma.room.update({ where: { id: code }, data: updateData });
+  } catch {
+    return NextResponse.json({ error: "Room not found" }, { status: 404 });
   }
 
   return NextResponse.json({ ok: true });

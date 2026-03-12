@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { mockSql } from "../setup";
+import { mockPrisma, resetMocks } from "../setup";
 import { GET, PATCH } from "@/app/api/rooms/[code]/route";
 
 function makeGetRequest(code: string) {
@@ -22,20 +22,27 @@ function makePatchRequest(code: string, body: unknown) {
 
 describe("GET /api/rooms/[code]", () => {
   beforeEach(() => {
-    mockSql.clearHandlers();
-    mockSql.mockQuery(/SELECT \* FROM rooms/, [
-      { id: "ABC123", quiz_id: "q1", phase: "lobby", current_question_index: 0, question_open: false, created_at: "2025-01-01", updated_at: "2025-01-01" },
-    ]);
-    mockSql.mockQuery(/SELECT \* FROM quizzes/, [
-      { id: "q1", title: "Test Quiz" },
-    ]);
-    mockSql.mockQuery(/SELECT \* FROM questions/, [
-      { id: "qn1", text: "What?", type: "multiple-choice", options: ["A", "B"], correct_answer: "A", points: 1, sort_order: 0 },
-    ]);
-    mockSql.mockQuery(/SELECT \* FROM players/, [
-      { id: "p1", room_id: "ABC123", name: "Alice", emoji: "🧒", color: "#e74c3c", score: 0, is_connected: true, joined_at: "2025-01-01" },
-    ]);
-    mockSql.mockQuery(/SELECT a\.\*.*FROM answers/, []);
+    resetMocks();
+    mockPrisma.room.findUnique.mockResolvedValue({
+      id: "ABC123",
+      quizId: "q1",
+      phase: "lobby",
+      currentQuestionIndex: 0,
+      questionOpen: false,
+      createdAt: "2025-01-01",
+      updatedAt: "2025-01-01",
+      quiz: {
+        id: "q1",
+        title: "Test Quiz",
+        questions: [
+          { id: "qn1", text: "What?", type: "multiple-choice", options: ["A", "B"], correctAnswer: "A", points: 1, sortOrder: 0 },
+        ],
+      },
+      players: [
+        { id: "p1", roomId: "ABC123", name: "Alice", emoji: "🧒", color: "#e74c3c", score: 0, isConnected: true, joinedAt: "2025-01-01" },
+      ],
+    });
+    mockPrisma.answer.findMany.mockResolvedValue([]);
   });
 
   it("returns full room state", async () => {
@@ -53,21 +60,24 @@ describe("GET /api/rooms/[code]", () => {
   });
 
   it("returns 404 for unknown room", async () => {
-    mockSql.clearHandlers();
-    mockSql.mockQuery(/SELECT \* FROM rooms/, []);
+    mockPrisma.room.findUnique.mockResolvedValue(null);
     const { request, params } = makeGetRequest("NOPE");
     const res = await GET(request, { params });
     expect(res.status).toBe(404);
   });
 
   it("returns null currentQuestion when index is out of bounds", async () => {
-    mockSql.clearHandlers();
-    mockSql.mockQuery(/SELECT \* FROM rooms/, [
-      { id: "ABC123", quiz_id: "q1", phase: "lobby", current_question_index: 99, question_open: false, created_at: "2025-01-01", updated_at: "2025-01-01" },
-    ]);
-    mockSql.mockQuery(/SELECT \* FROM quizzes/, [{ id: "q1", title: "Test Quiz" }]);
-    mockSql.mockQuery(/SELECT \* FROM questions/, []); // no questions
-    mockSql.mockQuery(/SELECT \* FROM players/, []);
+    mockPrisma.room.findUnique.mockResolvedValue({
+      id: "ABC123",
+      quizId: "q1",
+      phase: "lobby",
+      currentQuestionIndex: 99,
+      questionOpen: false,
+      createdAt: "2025-01-01",
+      updatedAt: "2025-01-01",
+      quiz: { id: "q1", title: "Test Quiz", questions: [] },
+      players: [],
+    });
 
     const { request, params } = makeGetRequest("ABC123");
     const res = await GET(request, { params });
@@ -80,9 +90,8 @@ describe("GET /api/rooms/[code]", () => {
 
 describe("PATCH /api/rooms/[code]", () => {
   beforeEach(() => {
-    mockSql.clearHandlers();
-    mockSql.mockQuery(/SELECT \* FROM rooms/, [{ id: "ABC123" }]);
-    mockSql.mockQuery(/UPDATE rooms/, []);
+    resetMocks();
+    mockPrisma.room.update.mockResolvedValue({ id: "ABC123" });
   });
 
   it("updates phase", async () => {
@@ -106,8 +115,7 @@ describe("PATCH /api/rooms/[code]", () => {
   });
 
   it("returns 404 for unknown room", async () => {
-    mockSql.clearHandlers();
-    mockSql.mockQuery(/SELECT \* FROM rooms/, []);
+    mockPrisma.room.update.mockRejectedValue(new Error("Record not found"));
     const { request, params } = makePatchRequest("NOPE", { phase: "playing" });
     const res = await PATCH(request, { params });
     expect(res.status).toBe(404);

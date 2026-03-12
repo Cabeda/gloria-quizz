@@ -45,7 +45,7 @@
 - [x] Vitest config with v8 coverage (90% thresholds)
 - [x] Unit tests for all API routes (52 tests, 9 files)
 - [x] GitHub Actions CI workflow (test + lint)
-- [x] Coverage: 99.42% statements, 95.83% branches, 94.44% functions, 100% lines
+- [x] Coverage: 99.32% statements, 93.87% branches, 95% functions, 100% lines
 
 ## Cleanup
 - [x] Remove old single-player components (GameBoard, PlayerSetup, GameContext, persistence.ts)
@@ -54,3 +54,18 @@
 - [x] Update TODO.md with current progress
 - [x] Build passes
 - [x] Push and create PR
+
+## Prisma Migration
+- [x] Install Prisma 7.5.0 with Neon adapter
+- [x] Create prisma/schema.prisma (5 models matching DB schema)
+- [x] Create prisma.config.ts for Prisma 7
+- [x] Generate Prisma client to src/generated/prisma/
+- [x] Fix Prisma client singleton (src/app/lib/prisma.ts)
+- [x] Rewrite all 9 API routes from raw SQL to Prisma
+- [x] Rewrite test setup to mock Prisma instead of raw SQL
+- [x] Rewrite all 9 test files (52 tests, all passing)
+- [x] Add prisma generate to build + postinstall scripts
+- [x] Add src/generated/ to .gitignore
+- [x] Coverage maintained: 99.32% stmts, 93.87% branches, 95% funcs, 100% lines
+- [x] Delete old src/app/lib/db.ts (raw SQL helper)
+- [ ] Commit and push Prisma migration

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { mockSql } from "../setup";
+import { mockPrisma, resetMocks } from "../setup";
 import { POST } from "@/app/api/rooms/[code]/join/route";
 
 function makeRequest(code: string, body: unknown) {
@@ -15,10 +15,10 @@ function makeRequest(code: string, body: unknown) {
 
 describe("POST /api/rooms/[code]/join", () => {
   beforeEach(() => {
-    mockSql.clearHandlers();
-    mockSql.mockQuery(/SELECT \* FROM rooms/, [{ id: "ABC123", phase: "lobby" }]);
-    mockSql.mockQuery(/SELECT \* FROM players/, []);
-    mockSql.mockQuery(/INSERT INTO players/, []);
+    resetMocks();
+    mockPrisma.room.findUnique.mockResolvedValue({ id: "ABC123", phase: "lobby" });
+    mockPrisma.player.count.mockResolvedValue(0);
+    mockPrisma.player.create.mockResolvedValue({ id: "test-id-1234" });
   });
 
   it("allows a player to join a lobby room", async () => {
@@ -48,16 +48,14 @@ describe("POST /api/rooms/[code]/join", () => {
   });
 
   it("returns 404 if room does not exist", async () => {
-    mockSql.clearHandlers();
-    mockSql.mockQuery(/SELECT \* FROM rooms/, []);
+    mockPrisma.room.findUnique.mockResolvedValue(null);
     const { request, params } = makeRequest("NOPE", { name: "Bob" });
     const res = await POST(request, { params });
     expect(res.status).toBe(404);
   });
 
   it("returns 400 if game already started", async () => {
-    mockSql.clearHandlers();
-    mockSql.mockQuery(/SELECT \* FROM rooms/, [{ id: "ABC123", phase: "playing" }]);
+    mockPrisma.room.findUnique.mockResolvedValue({ id: "ABC123", phase: "playing" });
     const { request, params } = makeRequest("ABC123", { name: "Bob" });
     const res = await POST(request, { params });
     expect(res.status).toBe(400);
@@ -66,9 +64,7 @@ describe("POST /api/rooms/[code]/join", () => {
   });
 
   it("returns 400 if room is full (10 players)", async () => {
-    mockSql.clearHandlers();
-    mockSql.mockQuery(/SELECT \* FROM rooms/, [{ id: "ABC123", phase: "lobby" }]);
-    mockSql.mockQuery(/SELECT \* FROM players/, Array(10).fill({ id: "p" }));
+    mockPrisma.player.count.mockResolvedValue(10);
     const { request, params } = makeRequest("ABC123", { name: "Extra" });
     const res = await POST(request, { params });
     expect(res.status).toBe(400);

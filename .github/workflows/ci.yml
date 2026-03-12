@@ -23,6 +23,9 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Generate Prisma client
+        run: npx prisma generate
+
       - name: Run tests with coverage
         run: pnpm test:coverage
 
@@ -41,4 +44,5 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+      - run: npx prisma generate
       - run: pnpm lint

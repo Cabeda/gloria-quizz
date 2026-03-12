@@ -1,47 +1,57 @@
 import { vi } from "vitest";
 
-/**
- * Creates a mock SQL tagged-template function.
- * Call mockSql.mockQuery(pattern, rows) to set up responses.
- * The pattern is matched against the raw SQL string (first template element).
- */
-export function createMockSql() {
-  const handlers: { pattern: RegExp; rows: unknown[] | ((vals: unknown[]) => unknown[]) }[] = [];
-
-  const sql = ((strings: TemplateStringsArray, ...values: unknown[]) => {
-    const raw = strings.join("?").replace(/\s+/g, " ").trim();
-    for (const h of handlers) {
-      if (h.pattern.test(raw)) {
-        const result = typeof h.rows === "function" ? h.rows(values) : h.rows;
-        return Promise.resolve(result);
-      }
-    }
-    return Promise.resolve([]);
-  }) as ((strings: TemplateStringsArray, ...values: unknown[]) => Promise<unknown[]>) & {
-    mockQuery: (pattern: RegExp, rows: unknown[] | ((vals: unknown[]) => unknown[])) => void;
-    clearHandlers: () => void;
+// Deep mock of the Prisma client
+// Each model gets: findUnique, findFirst, findMany, create, createMany, update, updateMany, delete, deleteMany, count
+function createModelMock() {
+  return {
+    findUnique: vi.fn().mockResolvedValue(null),
+    findFirst: vi.fn().mockResolvedValue(null),
+    findMany: vi.fn().mockResolvedValue([]),
+    create: vi.fn().mockResolvedValue({}),
+    createMany: vi.fn().mockResolvedValue({ count: 0 }),
+    update: vi.fn().mockResolvedValue({}),
+    updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+    delete: vi.fn().mockResolvedValue({}),
+    deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+    count: vi.fn().mockResolvedValue(0),
   };
-
-  sql.mockQuery = (pattern, rows) => {
-    handlers.unshift({ pattern, rows }); // newest first so overrides work
-  };
-
-  sql.clearHandlers = () => {
-    handlers.length = 0;
-  };
-
-  return sql;
 }
 
-// Shared mock sql instance
-export const mockSql = createMockSql();
+export const mockPrisma = {
+  quiz: createModelMock(),
+  question: createModelMock(),
+  room: createModelMock(),
+  player: createModelMock(),
+  answer: createModelMock(),
+};
 
-// Mock getDb to return our mock
-vi.mock("@/app/lib/db", () => ({
-  getDb: () => mockSql,
+vi.mock("@/app/lib/prisma", () => ({
+  prisma: mockPrisma,
 }));
 
 // Mock nanoid for deterministic IDs
 vi.mock("nanoid", () => ({
   nanoid: () => "test-id-1234",
 }));
+
+/** Reset all mocks between tests */
+export function resetMocks() {
+  for (const model of Object.values(mockPrisma)) {
+    for (const fn of Object.values(model)) {
+      (fn as ReturnType<typeof vi.fn>).mockReset();
+    }
+  }
+  // Re-apply sensible defaults
+  for (const model of Object.values(mockPrisma)) {
+    model.findUnique.mockResolvedValue(null);
+    model.findFirst.mockResolvedValue(null);
+    model.findMany.mockResolvedValue([]);
+    model.create.mockResolvedValue({});
+    model.createMany.mockResolvedValue({ count: 0 });
+    model.update.mockResolvedValue({});
+    model.updateMany.mockResolvedValue({ count: 0 });
+    model.delete.mockResolvedValue({});
+    model.deleteMany.mockResolvedValue({ count: 0 });
+    model.count.mockResolvedValue(0);
+  }
+}

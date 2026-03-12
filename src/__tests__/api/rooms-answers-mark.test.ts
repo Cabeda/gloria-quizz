@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { mockSql } from "../setup";
+import { mockPrisma, resetMocks } from "../setup";
 import { PATCH } from "@/app/api/rooms/[code]/answers/[answerId]/route";
 
 function makeRequest(code: string, answerId: string, body: unknown) {
@@ -18,12 +18,13 @@ function makeRequest(code: string, answerId: string, body: unknown) {
 
 describe("PATCH /api/rooms/[code]/answers/[answerId]", () => {
   beforeEach(() => {
-    mockSql.clearHandlers();
-    mockSql.mockQuery(/SELECT a\.\*.*FROM answers/, [
-      { id: "a1", player_id: "p1", is_correct: null, points: 3 },
-    ]);
-    mockSql.mockQuery(/UPDATE answers/, []);
-    mockSql.mockQuery(/UPDATE players/, []);
+    resetMocks();
+    mockPrisma.answer.findFirst.mockResolvedValue({
+      id: "a1", playerId: "p1", isCorrect: null,
+      question: { points: 3 },
+    });
+    mockPrisma.answer.update.mockResolvedValue({});
+    mockPrisma.player.update.mockResolvedValue({});
   });
 
   it("marks answer as correct and awards points", async () => {
@@ -41,12 +42,10 @@ describe("PATCH /api/rooms/[code]/answers/[answerId]", () => {
   });
 
   it("deducts points when changing from correct to wrong", async () => {
-    mockSql.clearHandlers();
-    mockSql.mockQuery(/SELECT a\.\*.*FROM answers/, [
-      { id: "a1", player_id: "p1", is_correct: true, points: 3 },
-    ]);
-    mockSql.mockQuery(/UPDATE answers/, []);
-    mockSql.mockQuery(/UPDATE players/, []);
+    mockPrisma.answer.findFirst.mockResolvedValue({
+      id: "a1", playerId: "p1", isCorrect: true,
+      question: { points: 3 },
+    });
 
     const { request, params } = makeRequest("ABC123", "a1", { isCorrect: false });
     const res = await PATCH(request, { params });
@@ -62,20 +61,17 @@ describe("PATCH /api/rooms/[code]/answers/[answerId]", () => {
   });
 
   it("returns 404 if answer not found", async () => {
-    mockSql.clearHandlers();
-    mockSql.mockQuery(/SELECT a\.\*.*FROM answers/, []);
+    mockPrisma.answer.findFirst.mockResolvedValue(null);
     const { request, params } = makeRequest("ABC123", "nope", { isCorrect: true });
     const res = await PATCH(request, { params });
     expect(res.status).toBe(404);
   });
 
   it("does not change score when marking already-wrong answer as wrong", async () => {
-    mockSql.clearHandlers();
-    mockSql.mockQuery(/SELECT a\.\*.*FROM answers/, [
-      { id: "a1", player_id: "p1", is_correct: false, points: 3 },
-    ]);
-    mockSql.mockQuery(/UPDATE answers/, []);
-    mockSql.mockQuery(/UPDATE players/, []);
+    mockPrisma.answer.findFirst.mockResolvedValue({
+      id: "a1", playerId: "p1", isCorrect: false,
+      question: { points: 3 },
+    });
 
     const { request, params } = makeRequest("ABC123", "a1", { isCorrect: false });
     const res = await PATCH(request, { params });
@@ -83,12 +79,10 @@ describe("PATCH /api/rooms/[code]/answers/[answerId]", () => {
   });
 
   it("awards points when changing from null to correct", async () => {
-    mockSql.clearHandlers();
-    mockSql.mockQuery(/SELECT a\.\*.*FROM answers/, [
-      { id: "a1", player_id: "p1", is_correct: null, points: 5 },
-    ]);
-    mockSql.mockQuery(/UPDATE answers/, []);
-    mockSql.mockQuery(/UPDATE players/, []);
+    mockPrisma.answer.findFirst.mockResolvedValue({
+      id: "a1", playerId: "p1", isCorrect: null,
+      question: { points: 5 },
+    });
 
     const { request, params } = makeRequest("ABC123", "a1", { isCorrect: true });
     const res = await PATCH(request, { params });
@@ -96,12 +90,10 @@ describe("PATCH /api/rooms/[code]/answers/[answerId]", () => {
   });
 
   it("uses default 1 point when points is falsy", async () => {
-    mockSql.clearHandlers();
-    mockSql.mockQuery(/SELECT a\.\*.*FROM answers/, [
-      { id: "a1", player_id: "p1", is_correct: null, points: 0 },
-    ]);
-    mockSql.mockQuery(/UPDATE answers/, []);
-    mockSql.mockQuery(/UPDATE players/, []);
+    mockPrisma.answer.findFirst.mockResolvedValue({
+      id: "a1", playerId: "p1", isCorrect: null,
+      question: { points: 0 },
+    });
 
     const { request, params } = makeRequest("ABC123", "a1", { isCorrect: true });
     const res = await PATCH(request, { params });

@@ -1,4 +1,4 @@
-import { getDb } from "@/app/lib/db";
+import { prisma } from "@/app/lib/prisma";
 import { NextResponse } from "next/server";
 
 function generateRoomCode(): string {
@@ -11,7 +11,6 @@ function generateRoomCode(): string {
 }
 
 export async function POST(request: Request) {
-  const sql = getDb();
   const body = await request.json();
   const { quizId } = body;
 
@@ -19,20 +18,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "quizId required" }, { status: 400 });
   }
 
-  const quizRows = await sql`SELECT id FROM quizzes WHERE id = ${quizId}`;
-  if (quizRows.length === 0) {
+  const quiz = await prisma.quiz.findUnique({ where: { id: quizId } });
+  if (!quiz) {
     return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
   }
 
   // Generate unique room code (retry on collision)
   let code = generateRoomCode();
   for (let attempt = 0; attempt < 5; attempt++) {
-    const existing = await sql`SELECT id FROM rooms WHERE id = ${code}`;
-    if (existing.length === 0) break;
+    const existing = await prisma.room.findUnique({ where: { id: code } });
+    if (!existing) break;
     code = generateRoomCode();
   }
 
-  await sql`INSERT INTO rooms (id, quiz_id) VALUES (${code}, ${quizId})`;
+  await prisma.room.create({ data: { id: code, quizId } });
 
   return NextResponse.json({ code });
 }

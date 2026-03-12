@@ -1,4 +1,4 @@
-import { getDb } from "@/app/lib/db";
+import { prisma } from "@/app/lib/prisma";
 import { nanoid } from "nanoid";
 import { NextResponse } from "next/server";
 
@@ -10,7 +10,6 @@ const PLAYER_EMOJIS = ["🧒", "👧", "👦", "👶", "🦊", "🐱", "🐶", "
 
 export async function POST(request: Request, { params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
-  const sql = getDb();
   const body = await request.json();
   const { name } = body;
 
@@ -18,25 +17,35 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
     return NextResponse.json({ error: "Name required" }, { status: 400 });
   }
 
-  const roomRows = await sql`SELECT * FROM rooms WHERE id = ${code}`;
-  if (roomRows.length === 0) {
+  const [room, playerCount] = await Promise.all([
+    prisma.room.findUnique({ where: { id: code }, select: { phase: true } }),
+    prisma.player.count({ where: { roomId: code } }),
+  ]);
+
+  if (!room) {
     return NextResponse.json({ error: "Room not found" }, { status: 404 });
   }
 
-  if (roomRows[0].phase !== "lobby") {
+  if (room.phase !== "lobby") {
     return NextResponse.json({ error: "Game already started" }, { status: 400 });
   }
 
-  const existingPlayers = await sql`SELECT * FROM players WHERE room_id = ${code}`;
-  if (existingPlayers.length >= 10) {
+  if (playerCount >= 10) {
     return NextResponse.json({ error: "Room is full" }, { status: 400 });
   }
 
-  const idx = existingPlayers.length;
+  const idx = playerCount;
   const playerId = nanoid(12);
 
-  await sql`INSERT INTO players (id, room_id, name, emoji, color)
-    VALUES (${playerId}, ${code}, ${name.trim()}, ${PLAYER_EMOJIS[idx % PLAYER_EMOJIS.length]}, ${PLAYER_COLORS[idx % PLAYER_COLORS.length]})`;
+  await prisma.player.create({
+    data: {
+      id: playerId,
+      roomId: code,
+      name: name.trim(),
+      emoji: PLAYER_EMOJIS[idx % PLAYER_EMOJIS.length],
+      color: PLAYER_COLORS[idx % PLAYER_COLORS.length],
+    },
+  });
 
   return NextResponse.json({
     id: playerId,
