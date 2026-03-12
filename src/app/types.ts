@@ -1,31 +1,62 @@
+// Shared types for the multiplayer quiz game
+
 export interface Question {
   id: string;
   text: string;
   type: "open-ended" | "multiple-choice";
   options?: string[];
-  /** Only required for multiple-choice. Open-ended questions are judged by the host. */
   correctAnswer?: string;
+  points: number;
+  sortOrder: number;
 }
 
 export interface Quiz {
+  id: string;
+  title: string;
   questions: Question[];
+  createdAt?: string;
 }
 
 export interface Player {
   id: string;
+  roomId: string;
   name: string;
-  position: number;
-  color: string;
   emoji: string;
+  color: string;
+  score: number;
+  isConnected: boolean;
+  joinedAt?: string;
 }
 
-export type GamePhase = "menu" | "quiz-creator" | "player-setup" | "playing" | "finished";
+export interface Answer {
+  id: string;
+  roomId: string;
+  questionId: string;
+  playerId: string;
+  answerText: string;
+  isCorrect: boolean | null;
+  answeredAt?: string;
+  playerName?: string;
+  playerEmoji?: string;
+  playerColor?: string;
+}
 
-export interface GameState {
-  phase: GamePhase;
+export type RoomPhase = "lobby" | "playing" | "question" | "reveal" | "finished";
+
+export interface Room {
+  id: string;
+  quizId: string;
+  phase: RoomPhase;
+  currentQuestionIndex: number;
+  questionOpen: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface RoomState {
+  room: Room;
   quiz: Quiz;
   players: Player[];
-  currentQuestionIndex: number;
-  totalPositions: number;
-  answeredCorrectly: boolean | null;
+  currentQuestion: Question | null;
+  answers: Answer[];
 }

@@ -56,6 +56,10 @@ pnpm start        # Serve production build
 pnpm lint         # Run ESLint
 ```
 
+## Task Tracking
+
+- **TODO.md** must be kept up to date during development. Mark tasks as done (`[x]`) as you complete them. Add new tasks as they arise. This file is the source of truth for what's left to do.
+
 ## Conventions
 
 - All user-facing text must be in **pt-PT** (Portuguese from Portugal).
