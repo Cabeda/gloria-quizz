@@ -21,27 +21,36 @@
 - [x] PATCH /api/rooms/[code]/answers/[answerId] — Mark open-ended correct/wrong
 
 ## Frontend Pages
-- [ ] `/` — Landing page (Create Quiz / Join Room)
-- [ ] `/create` — Quiz creator (saves to DB)
-- [ ] `/host/[code]` — Organizer big screen (lobby → questions → leaderboard)
-- [ ] `/play/[code]` — Player phone view (join → answer → results)
+- [x] `/` — Landing page (Create Quiz / Join Room)
+- [x] `/create` — Quiz creator (saves to DB)
+- [x] `/host/[code]` — Organizer big screen (lobby → questions → leaderboard)
+- [x] `/play/[code]` — Player phone view (join → answer → results)
 
 ## Frontend Components
-- [ ] Polling hook (useRoomState, useInterval)
-- [ ] QR code display component
-- [ ] Host lobby view (show players joining)
-- [ ] Host question view (show question + live answer count)
-- [ ] Host reveal view (correct answer + who got it right)
-- [ ] Host leaderboard view (between questions)
-- [ ] Host final standings
-- [ ] Player lobby view (waiting for game start)
-- [ ] Player question view (answer buttons / text input)
-- [ ] Player waiting view (after answering)
-- [ ] Player result view (correct/wrong + points)
+- [x] Polling hook (useRoomState)
+- [x] QR code display component
+- [x] Host lobby view (show players joining)
+- [x] Host question view (show question + live answer count)
+- [x] Host reveal view (correct answer + who got it right)
+- [x] Host leaderboard view (between questions)
+- [x] Host final standings
+- [x] Player join screen (name entry)
+- [x] Player lobby view (waiting for game start)
+- [x] Player question view (MC buttons / text input)
+- [x] Player waiting view (after answering)
+- [x] Player reveal view (correct/wrong + points + rank)
+- [x] Player final standings
+
+## Testing & CI
+- [x] Vitest config with v8 coverage (90% thresholds)
+- [x] Unit tests for all API routes (52 tests, 9 files)
+- [x] GitHub Actions CI workflow (test + lint)
+- [x] Coverage: 99.42% statements, 95.83% branches, 94.44% functions, 100% lines
 
 ## Cleanup
-- [ ] Remove old single-player components (GameBoard, PlayerSetup, GameContext, persistence.ts)
-- [ ] Update layout.tsx (remove GameProvider wrapper)
-- [ ] Update AGENTS.md with new architecture
-- [ ] Build passes
-- [ ] Push and create PR
+- [x] Remove old single-player components (GameBoard, PlayerSetup, GameContext, persistence.ts)
+- [x] Update layout.tsx (remove GameProvider wrapper)
+- [x] Update AGENTS.md with new architecture
+- [x] Update TODO.md with current progress
+- [x] Build passes
+- [x] Push and create PR
