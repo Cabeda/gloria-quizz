@@ -1,0 +1,265 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import type { Question } from "../types";
+
+interface DraftQuestion {
+  text: string;
+  type: "open-ended" | "multiple-choice";
+  options: string[];
+  correctAnswer: string;
+  points: number;
+}
+
+const emptyQuestion = (): DraftQuestion => ({
+  text: "",
+  type: "multiple-choice",
+  options: ["", "", "", ""],
+  correctAnswer: "",
+  points: 1,
+});
+
+export default function CreateQuizPage() {
+  const router = useRouter();
+  const [title, setTitle] = useState("");
+  const [questions, setQuestions] = useState<DraftQuestion[]>([emptyQuestion()]);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  function updateQuestion(idx: number, patch: Partial<DraftQuestion>) {
+    setQuestions((prev) =>
+      prev.map((q, i) => (i === idx ? { ...q, ...patch } : q))
+    );
+  }
+
+  function updateOption(qIdx: number, optIdx: number, value: string) {
+    setQuestions((prev) =>
+      prev.map((q, i) =>
+        i === qIdx
+          ? { ...q, options: q.options.map((o, j) => (j === optIdx ? value : o)) }
+          : q
+      )
+    );
+  }
+
+  function removeQuestion(idx: number) {
+    if (questions.length <= 1) return;
+    setQuestions((prev) => prev.filter((_, i) => i !== idx));
+  }
+
+  function addQuestion() {
+    setQuestions((prev) => [...prev, emptyQuestion()]);
+  }
+
+  async function handleSave() {
+    setError("");
+    if (!title.trim()) {
+      setError("Da um titulo ao quiz!");
+      return;
+    }
+
+    const valid = questions.every((q) => {
+      if (!q.text.trim()) return false;
+      if (q.type === "multiple-choice") {
+        const filled = q.options.filter((o) => o.trim());
+        if (filled.length < 2) return false;
+        if (!q.correctAnswer.trim()) return false;
+      }
+      return true;
+    });
+
+    if (!valid) {
+      setError(
+        "Verifica as perguntas: cada uma precisa de texto, e as de escolha multipla precisam de pelo menos 2 opcoes e uma resposta correta."
+      );
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const payload = {
+        title: title.trim(),
+        questions: questions.map((q) => ({
+          text: q.text.trim(),
+          type: q.type,
+          options: q.type === "multiple-choice" ? q.options.filter((o) => o.trim()) : [],
+          correctAnswer: q.type === "multiple-choice" ? q.correctAnswer.trim() : undefined,
+          points: q.points,
+        })),
+      };
+
+      const res = await fetch("/api/quizzes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Erro ao guardar");
+      }
+
+      const { id: quizId } = await res.json();
+
+      // Create room immediately
+      const roomRes = await fetch("/api/rooms", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ quizId }),
+      });
+
+      if (!roomRes.ok) throw new Error("Erro ao criar sala");
+      const { code } = await roomRes.json();
+
+      router.push(`/host/${code}`);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Erro desconhecido");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col items-center p-4 py-8">
+      <div className="retro-card p-6 md:p-8 max-w-2xl w-full animate-bounce-in">
+        <h1 className="text-2xl md:text-3xl font-extrabold text-amber-900 mb-6 text-center">
+          Criar Quiz
+        </h1>
+
+        <input
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Titulo do quiz..."
+          className="retro-input w-full text-lg mb-6"
+        />
+
+        <div className="space-y-6">
+          {questions.map((q, qIdx) => (
+            <div
+              key={qIdx}
+              className="bg-amber-50 border-2 border-amber-300 rounded-xl p-4 animate-slide-up"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <span className="font-bold text-amber-800">
+                  Pergunta {qIdx + 1}
+                </span>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-amber-600 font-bold">Pontos:</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={10}
+                    value={q.points}
+                    onChange={(e) =>
+                      updateQuestion(qIdx, { points: Math.max(1, parseInt(e.target.value) || 1) })
+                    }
+                    className="retro-input w-16 text-center text-sm py-1 px-2"
+                  />
+                  {questions.length > 1 && (
+                    <button
+                      onClick={() => removeQuestion(qIdx)}
+                      className="text-red-500 hover:text-red-700 font-bold text-lg px-2"
+                    >
+                      X
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <textarea
+                value={q.text}
+                onChange={(e) => updateQuestion(qIdx, { text: e.target.value })}
+                placeholder="Escreve a pergunta..."
+                className="retro-input w-full mb-3 resize-none"
+                rows={2}
+              />
+
+              <div className="flex gap-2 mb-3">
+                <button
+                  onClick={() => updateQuestion(qIdx, { type: "multiple-choice" })}
+                  className={`text-xs font-bold px-3 py-1 rounded-lg border-2 transition-colors ${
+                    q.type === "multiple-choice"
+                      ? "bg-amber-600 text-white border-amber-700"
+                      : "bg-white text-amber-700 border-amber-300 hover:bg-amber-100"
+                  }`}
+                >
+                  Escolha Multipla
+                </button>
+                <button
+                  onClick={() => updateQuestion(qIdx, { type: "open-ended" })}
+                  className={`text-xs font-bold px-3 py-1 rounded-lg border-2 transition-colors ${
+                    q.type === "open-ended"
+                      ? "bg-amber-600 text-white border-amber-700"
+                      : "bg-white text-amber-700 border-amber-300 hover:bg-amber-100"
+                  }`}
+                >
+                  Resposta Aberta
+                </button>
+              </div>
+
+              {q.type === "multiple-choice" && (
+                <div className="space-y-2">
+                  {q.options.map((opt, optIdx) => (
+                    <div key={optIdx} className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name={`correct-${qIdx}`}
+                        checked={q.correctAnswer === opt && opt.trim() !== ""}
+                        onChange={() => updateQuestion(qIdx, { correctAnswer: opt })}
+                        className="w-4 h-4 accent-green-600"
+                      />
+                      <input
+                        type="text"
+                        value={opt}
+                        onChange={(e) => updateOption(qIdx, optIdx, e.target.value)}
+                        placeholder={`Opcao ${optIdx + 1}`}
+                        className="retro-input flex-1 text-sm py-1.5"
+                      />
+                    </div>
+                  ))}
+                  <p className="text-xs text-amber-600 mt-1">
+                    Seleciona o radio da resposta correta
+                  </p>
+                </div>
+              )}
+
+              {q.type === "open-ended" && (
+                <p className="text-xs text-amber-600 italic">
+                  O organizador avalia as respostas manualmente durante o jogo.
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <button
+          onClick={addQuestion}
+          className="retro-button retro-button-secondary w-full mt-4"
+        >
+          + Adicionar Pergunta
+        </button>
+
+        {error && (
+          <p className="text-red-600 font-bold text-center mt-4">{error}</p>
+        )}
+
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="retro-button retro-button-green w-full mt-4"
+        >
+          {saving ? "A guardar..." : "Guardar e Criar Sala"}
+        </button>
+
+        <button
+          onClick={() => router.push("/")}
+          className="block mx-auto mt-4 text-amber-700 hover:text-amber-900 font-bold text-sm underline"
+        >
+          Voltar ao menu
+        </button>
+      </div>
+    </div>
+  );
+}

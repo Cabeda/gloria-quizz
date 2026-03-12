@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { GameProvider } from "./context/GameContext";
 
 export const metadata: Metadata = {
-  title: "Quem conhece a Graça?",
-  description: "Um jogo de tabuleiro estilo Glória com quiz — diversão garantida!",
+  title: "Quem conhece a Graca?",
+  description: "Um quiz multiplayer em tempo real — diversao garantida!",
 };
 
 export default function RootLayout({
@@ -14,9 +13,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-PT">
-      <body className="antialiased">
-        <GameProvider>{children}</GameProvider>
-      </body>
+      <body className="antialiased">{children}</body>
     </html>
   );
 }
