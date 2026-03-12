@@ -45,6 +45,8 @@ type Action =
   | { type: "MOVE_PLAYER"; playerId: string; position: number }
   | { type: "ADVANCE_PLAYER"; playerId: string; steps: number }
   | { type: "NEXT_QUESTION" }
+  | { type: "PREV_QUESTION" }
+  | { type: "GO_TO_QUESTION"; index: number }
   | { type: "ANSWER_CORRECT" }
   | { type: "ANSWER_WRONG" }
   | { type: "RESET_ANSWER" }
@@ -132,6 +134,26 @@ function gameReducer(state: GameState, action: Action): GameState {
         phase: winner ? "finished" : state.phase,
       };
     }
+
+    case "PREV_QUESTION": {
+      const totalQuestions = state.quiz.questions.length;
+      const prevQuestionIndex =
+        state.currentQuestionIndex === 0
+          ? totalQuestions - 1
+          : state.currentQuestionIndex - 1;
+      return {
+        ...state,
+        currentQuestionIndex: prevQuestionIndex,
+        answeredCorrectly: null,
+      };
+    }
+
+    case "GO_TO_QUESTION":
+      return {
+        ...state,
+        currentQuestionIndex: Math.max(0, Math.min(action.index, state.quiz.questions.length - 1)),
+        answeredCorrectly: null,
+      };
 
     case "RESTART_GAME":
       // Keep quiz and players, reset positions and turn state

@@ -169,6 +169,7 @@ export function GameBoard() {
   const [prevRanking, setPrevRanking] = useState<string[]>([]);
   const [movedUpIds, setMovedUpIds] = useState<Set<string>>(new Set());
   const boardRef = useRef<HTMLDivElement>(null);
+  const [showQuestionPicker, setShowQuestionPicker] = useState(false);
 
   const currentQuestion = state.quiz.questions[state.currentQuestionIndex];
 
@@ -203,6 +204,7 @@ export function GameBoard() {
     setShowQuestion(true);
     setSelectedAnswer("");
     setShowResult(false);
+    setShowQuestionPicker(false);
     dispatch({ type: "RESET_ANSWER" });
   }
 
@@ -215,6 +217,23 @@ export function GameBoard() {
     setShowQuestion(false);
     setSelectedAnswer("");
     setShowResult(false);
+    setShowQuestionPicker(false);
+  }
+
+  function handlePrevQuestion() {
+    dispatch({ type: "PREV_QUESTION" });
+    setShowQuestion(false);
+    setSelectedAnswer("");
+    setShowResult(false);
+    setShowQuestionPicker(false);
+  }
+
+  function handleGoToQuestion(index: number) {
+    dispatch({ type: "GO_TO_QUESTION", index });
+    setShowQuestion(false);
+    setSelectedAnswer("");
+    setShowResult(false);
+    setShowQuestionPicker(false);
   }
 
   function getPlayersAtPosition(pos: number): Player[] {
@@ -419,14 +438,76 @@ export function GameBoard() {
               <p className="text-gloria-brown font-bold text-lg mb-1">Pergunta {state.currentQuestionIndex + 1}/{state.quiz.questions.length}</p>
               <p className="text-gloria-brown-light text-sm mb-4">Quem responde primeiro, avança!</p>
               <button className="retro-button w-full" onClick={handleAskQuestion}>Ver Pergunta</button>
+              
+              {/* Question navigation */}
+              <div className="flex items-center justify-center gap-2 mt-3">
+                <button
+                  className="retro-button retro-button-secondary text-xs py-1 px-3"
+                  onClick={handlePrevQuestion}
+                  disabled={state.quiz.questions.length <= 1}
+                >
+                  ← Anterior
+                </button>
+                <button
+                  className="text-gloria-brown-light hover:text-gloria-brown text-xs underline"
+                  onClick={() => setShowQuestionPicker(!showQuestionPicker)}
+                >
+                  Ir para...
+                </button>
+                <button
+                  className="retro-button retro-button-secondary text-xs py-1 px-3"
+                  onClick={handleNextQuestion}
+                  disabled={state.quiz.questions.length <= 1}
+                >
+                  Seguinte →
+                </button>
+              </div>
+              
+              {/* Question picker dropdown */}
+              {showQuestionPicker && (
+                <div className="mt-3 max-h-32 overflow-y-auto border-2 border-gloria-tan rounded-lg bg-gloria-cream animate-slide-up">
+                  {state.quiz.questions.map((q, i) => (
+                    <button
+                      key={q.id}
+                      className={`w-full text-left px-3 py-2 text-sm hover:bg-gloria-tan/30 transition-colors ${
+                        i === state.currentQuestionIndex ? "bg-gloria-tan/50 font-bold" : ""
+                      }`}
+                      onClick={() => handleGoToQuestion(i)}
+                    >
+                      <span className="text-gloria-brown-light mr-2">{i + 1}.</span>
+                      <span className="text-gloria-brown truncate">{q.text}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           ) : (
             <div className="animate-slide-up">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-2xl">❓</span>
-                <span className="text-xs bg-gloria-tan text-gloria-brown-light px-2 py-0.5 rounded-full">
-                  Pergunta {state.currentQuestionIndex + 1}/{state.quiz.questions.length}
-                </span>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">❓</span>
+                  <span className="text-xs bg-gloria-tan text-gloria-brown-light px-2 py-0.5 rounded-full">
+                    Pergunta {state.currentQuestionIndex + 1}/{state.quiz.questions.length}
+                  </span>
+                </div>
+                <div className="flex gap-1">
+                  <button
+                    className="text-gloria-brown-light hover:text-gloria-brown text-lg px-1"
+                    onClick={handlePrevQuestion}
+                    disabled={state.quiz.questions.length <= 1}
+                    title="Pergunta anterior"
+                  >
+                    ←
+                  </button>
+                  <button
+                    className="text-gloria-brown-light hover:text-gloria-brown text-lg px-1"
+                    onClick={handleNextQuestion}
+                    disabled={state.quiz.questions.length <= 1}
+                    title="Próxima pergunta"
+                  >
+                    →
+                  </button>
+                </div>
               </div>
               <p className="text-gloria-brown font-bold text-lg mb-4">{currentQuestion?.text}</p>
 
