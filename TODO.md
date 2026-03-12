@@ -68,4 +68,9 @@
 - [x] Add src/generated/ to .gitignore
 - [x] Coverage maintained: 99.32% stmts, 93.87% branches, 95% funcs, 100% lines
 - [x] Delete old src/app/lib/db.ts (raw SQL helper)
-- [ ] Commit and push Prisma migration
+- [x] Commit and push Prisma migration
+
+## Next Steps
+- [ ] Verify Vercel deployment works (prisma generate in build should fix 500 errors)
+- [ ] Performance optimizations (Prisma select for specific fields, parallel queries)
+- [ ] Fix correctAnswer radio button bug in /create page (patch included in Prisma commit)
