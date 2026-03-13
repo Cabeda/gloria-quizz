@@ -915,6 +915,17 @@ export default function HostPage() {
   const [resetting, setResetting] = useState(false);
   const { play, muted, toggleMute } = useSound();
 
+  // Play sounds on phase transitions
+  const phase = state?.room.phase;
+  const prevPhaseRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (phase && phase !== prevPhaseRef.current) {
+      if (phase === "reveal") play("reveal");
+      if (phase === "finished") play("fanfare");
+      prevPhaseRef.current = phase;
+    }
+  }, [phase, play]);
+
   async function resetGame() {
     setResetting(true);
     await fetch(`/api/rooms/${code}/reset`, { method: "POST" });

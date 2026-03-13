@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useRoomState } from "../../hooks/useRoomState";
+import { useSound } from "../../hooks/useSound";
+import { MuteButton } from "../../components/MuteButton";
 import type { Player, Answer } from "../../types";
 
 // --- Countdown Timer Hook ---
@@ -553,6 +555,7 @@ export default function PlayPage() {
   });
   const [lastPointsAwarded, setLastPointsAwarded] = useState<number | null>(null);
   const lastQuestionIndexRef = useRef<number | null>(null);
+  const { play, muted, toggleMute } = useSound();
 
   // Always poll room state so we can restore session and track game progress
   const { state, error, loading } = useRoomState(code);
@@ -592,6 +595,23 @@ export default function PlayPage() {
   }, [currentPhase, currentQuestionIndex]);
 
   const restoringSession = loading;
+
+  // Play correct/wrong sound when entering reveal phase
+  const prevPhaseRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    const phase = state?.room.phase;
+    if (phase && phase !== prevPhaseRef.current) {
+      if (phase === "reveal" && player && state) {
+        const myAnswer = state.answers.find((a) => a.playerId === player.id);
+        if (myAnswer?.isCorrect) {
+          play("correct");
+        } else if (myAnswer) {
+          play("wrong");
+        }
+      }
+      prevPhaseRef.current = phase;
+    }
+  }, [state?.room.phase, state, player, play]);
 
   function handleJoined(p: Player) {
     localStorage.setItem(`player-${code}`, p.id);
@@ -649,14 +669,17 @@ export default function PlayPage() {
 
   const { room, quiz, players, currentQuestion, answers } = state;
 
+  // Wrap all game phases with MuteButton
+  const muteButton = <MuteButton muted={muted} onToggle={toggleMute} />;
+
   // Lobby phase
   if (room.phase === "lobby") {
-    return <PlayerLobby player={player} players={players} />;
+    return <>{muteButton}<PlayerLobby player={player} players={players} /></>;
   }
 
   // Finished phase
   if (room.phase === "finished") {
-    return <PlayerFinished player={player} players={players} />;
+    return <>{muteButton}<PlayerFinished player={player} players={players} /></>;
   }
 
   // Question phase
@@ -665,12 +688,12 @@ export default function PlayPage() {
     const alreadyAnswered = answers.some((a) => a.playerId === player.id);
 
     if (alreadyAnswered || !room.questionOpen) {
-      return <PlayerWaiting />;
+      return <>{muteButton}<PlayerWaiting /></>;
     }
 
     if (currentQuestion.type === "multiple-choice" && currentQuestion.options) {
       return (
-        <PlayerMCQuestion
+        <>{muteButton}<PlayerMCQuestion
           questionText={currentQuestion.text}
           options={currentQuestion.options}
           questionIndex={room.currentQuestionIndex}
@@ -678,19 +701,19 @@ export default function PlayPage() {
           timeLimit={currentQuestion.timeLimit}
           questionStartedAt={room.questionStartedAt}
           onAnswer={handleAnswer}
-        />
+        /></>
       );
     }
 
     return (
-      <PlayerOpenQuestion
+      <>{muteButton}<PlayerOpenQuestion
         questionText={currentQuestion.text}
         questionIndex={room.currentQuestionIndex}
         totalQuestions={quiz.questions.length}
         timeLimit={currentQuestion.timeLimit}
         questionStartedAt={room.questionStartedAt}
         onAnswer={handleAnswer}
-      />
+      /></>
     );
   }
 
@@ -698,7 +721,7 @@ export default function PlayPage() {
   if (room.phase === "reveal" && currentQuestion) {
     const myAnswer = answers.find((a) => a.playerId === player.id) || null;
     return (
-      <PlayerReveal
+      <>{muteButton}<PlayerReveal
         player={player}
         answer={myAnswer}
         correctAnswer={currentQuestion.correctAnswer}
@@ -706,10 +729,10 @@ export default function PlayPage() {
         players={players}
         pointsAwarded={lastPointsAwarded}
         basePoints={currentQuestion.points}
-      />
+      /></>
     );
   }
 
   // Fallback
-  return <PlayerWaiting />;
+  return <>{muteButton}<PlayerWaiting /></>;
 }

@@ -104,13 +104,13 @@ Adds urgency and rewards fast answers — the core of what makes quiz games exci
 Even 3-4 sounds transform the vibe from silent app to party game.
 
 ### Implementation
-- [ ] Add sound files to `/public/sounds/` (tick.mp3, correct.mp3, wrong.mp3, fanfare.mp3, countdown.mp3)
-- [ ] Create `useSound` hook — preloads audio, exposes `play(soundName)` function
-- [ ] Host: play countdown tick during question phase (last 5 seconds)
-- [ ] Host: play reveal sound when showing correct answer
-- [ ] Host: play fanfare on final standings
-- [ ] Player: play correct/wrong sound on reveal
-- [ ] Add mute/unmute toggle button (both host and player, persisted in localStorage)
+- [x] Create `useSound` hook — Web Audio API synthesis (tick, correct, wrong, reveal, fanfare)
+- [x] Create `MuteButton` component — mute toggle persisted in localStorage
+- [x] Host: play countdown tick during question phase (last 5 seconds)
+- [x] Host: play reveal sound when showing correct answer
+- [x] Host: play fanfare on final standings
+- [x] Player: play correct/wrong sound on reveal
+- [x] Add mute/unmute toggle button (both host and player, persisted in localStorage)
 
 ## Feature: Live Answer Count on Host
 Gives the host confidence to pace the game — "everyone answered, let's reveal!"
