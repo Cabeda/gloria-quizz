@@ -79,5 +79,109 @@
 
 ## Next Steps
 - [ ] Verify Vercel deployment works end-to-end
-- [x] Performance optimizations (Prisma select, $transaction, skip unnecessary queries)
-- [x] Fix correctAnswer radio button bug in /create and host QuizEditor (store index, not text)
+
+## Feature: Question Timer + Speed Bonus
+Adds urgency and rewards fast answers — the core of what makes quiz games exciting.
+
+### Backend
+- [ ] Add `timeLimit` column to questions table (nullable int, seconds, default null = no timer)
+- [ ] Update Prisma schema + generate client
+- [ ] Update `POST /api/rooms/[code]/answer` — record `answeredAt` timestamp, calculate speed bonus
+  - Speed bonus formula: `basePoints * (timeRemaining / timeLimit)` rounded, minimum 1 point if correct
+- [ ] Update `GET /api/rooms/[code]` — include `timeLimit` in currentQuestion, include `questionStartedAt` in room state
+- [ ] Add `questionStartedAt` column to rooms table (nullable timestamp)
+- [ ] Update `PATCH /api/rooms/[code]` — set `questionStartedAt = now()` when opening a question
+- [ ] Tests for speed bonus calculation (fast answer = more points, slow answer = fewer points, expired = 0)
+
+### Frontend
+- [ ] Quiz creator (`/create`) — add timer dropdown per question (Sem limite / 10s / 20s / 30s / 60s)
+- [ ] Host QuizEditor — same timer dropdown
+- [ ] Host question view — show countdown timer (circular or bar), auto-close when expired
+- [ ] Player question view — show countdown timer, disable answer buttons when expired
+- [ ] Player reveal — show speed bonus breakdown ("5 pontos + 3 bonus de velocidade")
+
+## Feature: Sound Effects
+Even 3-4 sounds transform the vibe from silent app to party game.
+
+### Implementation
+- [ ] Add sound files to `/public/sounds/` (tick.mp3, correct.mp3, wrong.mp3, fanfare.mp3, countdown.mp3)
+- [ ] Create `useSound` hook — preloads audio, exposes `play(soundName)` function
+- [ ] Host: play countdown tick during question phase (last 5 seconds)
+- [ ] Host: play reveal sound when showing correct answer
+- [ ] Host: play fanfare on final standings
+- [ ] Player: play correct/wrong sound on reveal
+- [ ] Add mute/unmute toggle button (both host and player, persisted in localStorage)
+
+## Feature: Live Answer Count on Host
+Gives the host confidence to pace the game — "everyone answered, let's reveal!"
+
+### Implementation
+- [ ] Host question view — show "X/Y responderam" counter (already have answers in state, just display it)
+- [ ] Animate the counter as answers come in
+- [ ] Auto-advance option: when all players answered, show a "Todos responderam!" flash + auto-reveal after 2s
+
+## Feature: Podium Finish
+A dramatic 3rd → 2nd → 1st reveal makes the ending feel like an event.
+
+### Implementation
+- [ ] New `PodiumReveal` component on host finished screen
+- [ ] Animated sequence: 3rd place rises → 2nd place rises → 1st place rises (CSS animations)
+- [ ] Show player emoji, name, score on each podium step
+- [ ] Confetti burst on 1st place reveal
+- [ ] Player finished screen — show their final rank prominently ("Ficaste em 2o lugar!")
+
+## Feature: Player Rank Between Questions
+Fuels competition by showing players where they stand after each question.
+
+### Implementation
+- [ ] Player reveal view — show current rank ("Estas em 2o lugar!") with gap to 1st
+- [ ] Show rank change indicator (arrow up/down/same) compared to previous question
+- [ ] Leaderboard mini-view on player screen (top 3 + player's own position)
+
+## Feature: Emoji Reactions
+Low effort, high fun — players send quick reactions that appear on the host screen.
+
+### Backend
+- [ ] `POST /api/rooms/[code]/reactions` — player sends emoji reaction (throttled: 1 per 3s per player)
+- [ ] `GET /api/rooms/[code]/reactions` — recent reactions (last 10s)
+- [ ] Tests for reaction endpoint (throttle, valid emoji, room exists)
+
+### Frontend
+- [ ] Player: reaction bar during reveal phase (5-6 emoji buttons: 😂🔥😱🎉👏😭)
+- [ ] Host: floating emoji animation overlay — reactions bubble up and fade out
+- [ ] Rate-limit UI: disable buttons for 3s after sending
+
+## Feature: Question Reordering
+Drag-to-reorder in the quiz editor helps organizers adjust on the fly.
+
+### Implementation
+- [ ] Quiz creator (`/create`) — drag handle on each question, reorder via drag-and-drop
+- [ ] Host QuizEditor — same drag-to-reorder
+- [ ] Use HTML5 drag-and-drop API (no extra dependencies)
+- [ ] Update sortOrder on save
+
+## Feature: Answer Streaks
+"3 respostas certas seguidas!" builds momentum and adds a meta-game.
+
+### Backend
+- [ ] Track streak per player — count consecutive correct answers
+- [ ] Include streak in room state response (per player)
+- [ ] Streak bonus: 3+ streak = 1.5x points, 5+ streak = 2x points
+
+### Frontend
+- [ ] Player: show streak counter with fire animation ("🔥 3 seguidas!")
+- [ ] Host reveal: highlight players on streaks
+- [ ] Streak break notification ("Perdeste a streak!")
+
+## Feature: Quiz Library
+Save and reuse quizzes — saves organizers time for recurring events.
+
+### Backend
+- [ ] `GET /api/quizzes` — list all quizzes (paginated, newest first)
+- [ ] Tests for quiz listing endpoint
+
+### Frontend
+- [ ] Landing page or `/quizzes` — show saved quizzes with title, question count, date
+- [ ] "Usar este quiz" button → creates room directly
+- [ ] "Editar" button → opens quiz in editor
+- [ ] "Apagar" button with confirmation
