@@ -272,6 +272,10 @@ function HostLobby({ code, players, quizId, questions, onEdit }: { code: string;
     await patchRoom(code, { phase: "question", questionOpen: true });
   }
 
+  async function removePlayer(playerId: string) {
+    await fetch(`/api/rooms/${code}/players/${playerId}`, { method: "DELETE" });
+  }
+
   return (
     <div className="text-center space-y-6">
       <div className="text-6xl animate-wave inline-block">🎲</div>
@@ -298,6 +302,13 @@ function HostLobby({ code, players, quizId, questions, onEdit }: { code: string;
                   {p.emoji}
                 </span>
                 <span className="font-bold text-amber-900">{p.name}</span>
+                <button
+                  onClick={() => removePlayer(p.id)}
+                  className="text-red-400 hover:text-red-600 font-bold text-sm ml-1"
+                  title="Remover jogador"
+                >
+                  X
+                </button>
               </div>
             ))}
           </div>
