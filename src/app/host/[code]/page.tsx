@@ -505,15 +505,24 @@ function HostQuestion({
     }
   }, [remaining, questionOpen, code]);
 
-  // Auto-reveal when all players answered
+  // Auto-reveal when all players answered (MC only)
+  // For open-ended, just close answers so host can grade before revealing
   useEffect(() => {
     if (allAnswered && questionOpen) {
-      const timer = setTimeout(() => {
-        patchRoom(code, { phase: "reveal", questionOpen: false });
-      }, 2000);
-      return () => clearTimeout(timer);
+      if (questionType === "multiple-choice") {
+        const timer = setTimeout(() => {
+          patchRoom(code, { phase: "reveal", questionOpen: false });
+        }, 2000);
+        return () => clearTimeout(timer);
+      } else {
+        // Open-ended or any other type: just close answers, don't reveal
+        const timer = setTimeout(() => {
+          patchRoom(code, { questionOpen: false });
+        }, 2000);
+        return () => clearTimeout(timer);
+      }
     }
-  }, [allAnswered, questionOpen, code]);
+  }, [allAnswered, questionOpen, code, questionType]);
 
   return (
     <div className="space-y-6">
@@ -571,9 +580,11 @@ function HostQuestion({
           </div>
         )}
 
-        {questionType === "open-ended" && !questionOpen && answers.length > 0 && (
+        {questionType !== "multiple-choice" && answers.length > 0 && (
           <div className="space-y-2 mb-6">
-            <h3 className="font-bold text-amber-800 text-lg">Respostas:</h3>
+            <h3 className="font-bold text-amber-800 text-lg">
+              Respostas:{questionOpen ? " (a receber...)" : ""}
+            </h3>
             {answers.map((a) => (
               <div
                 key={a.id}
@@ -589,28 +600,30 @@ function HostQuestion({
                   <span className="font-bold text-amber-900">{a.playerName}</span>
                   <span className="text-amber-700">— {a.answerText}</span>
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => markAnswer(code, a.id, true)}
-                    className={`px-3 py-1 rounded-lg font-bold text-sm border-2 transition-colors ${
-                      a.isCorrect === true
-                        ? "bg-green-500 text-white border-green-600"
-                        : "bg-white text-green-600 border-green-300 hover:bg-green-50"
-                    }`}
-                  >
-                    Certo
-                  </button>
-                  <button
-                    onClick={() => markAnswer(code, a.id, false)}
-                    className={`px-3 py-1 rounded-lg font-bold text-sm border-2 transition-colors ${
-                      a.isCorrect === false
-                        ? "bg-red-500 text-white border-red-600"
-                        : "bg-white text-red-600 border-red-300 hover:bg-red-50"
-                    }`}
-                  >
-                    Errado
-                  </button>
-                </div>
+                {!questionOpen && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => markAnswer(code, a.id, true)}
+                      className={`px-3 py-1 rounded-lg font-bold text-sm border-2 transition-colors ${
+                        a.isCorrect === true
+                          ? "bg-green-500 text-white border-green-600"
+                          : "bg-white text-green-600 border-green-300 hover:bg-green-50"
+                      }`}
+                    >
+                      Certo
+                    </button>
+                    <button
+                      onClick={() => markAnswer(code, a.id, false)}
+                      className={`px-3 py-1 rounded-lg font-bold text-sm border-2 transition-colors ${
+                        a.isCorrect === false
+                          ? "bg-red-500 text-white border-red-600"
+                          : "bg-white text-red-600 border-red-300 hover:bg-red-50"
+                      }`}
+                    >
+                      Errado
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -626,7 +639,17 @@ function HostQuestion({
             Fechar Respostas
           </button>
         )}
-        {!questionOpen && (
+        {!questionOpen && questionType !== "multiple-choice" && (answers.length === 0 || answers.some((a) => a.isCorrect === null)) && (
+          <p className="text-amber-200 font-bold self-center">
+            {answers.length === 0 ? "Ninguem respondeu ainda" : "Avalia todas as respostas antes de revelar"}
+          </p>
+        )}
+        {!questionOpen && questionType !== "multiple-choice" && answers.length > 0 && answers.every((a) => a.isCorrect !== null) && (
+          <button onClick={showReveal} className="retro-button">
+            Revelar Resultado
+          </button>
+        )}
+        {!questionOpen && questionType === "multiple-choice" && (
           <button onClick={showReveal} className="retro-button">
             Revelar Resultado
           </button>
@@ -672,7 +695,7 @@ function HostReveal({
   }
 
   const correctPlayers = answers.filter((a) => a.isCorrect === true);
-  const wrongPlayers = answers.filter((a) => a.isCorrect === false);
+  const wrongPlayers = answers.filter((a) => a.isCorrect !== true);
 
   return (
     <div className="space-y-6">

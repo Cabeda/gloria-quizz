@@ -16,7 +16,7 @@ interface DraftQuestion {
 const emptyQuestion = (): DraftQuestion => ({
   text: "",
   type: "multiple-choice",
-  options: ["", "", "", ""],
+  options: ["", ""],
   correctAnswerIndex: null,
   points: 1,
   timeLimit: null,
@@ -24,8 +24,8 @@ const emptyQuestion = (): DraftQuestion => ({
 
 function questionToDraft(q: Question): DraftQuestion {
   const options = q.type === "multiple-choice" && q.options?.length
-    ? [...q.options, ...Array(Math.max(0, 4 - q.options.length)).fill("")]
-    : ["", "", "", ""];
+    ? [...q.options, ...Array(Math.max(0, 2 - q.options.length)).fill("")]
+    : ["", ""];
   const correctAnswerIndex = q.correctAnswer && q.options
     ? q.options.indexOf(q.correctAnswer)
     : null;
@@ -98,6 +98,29 @@ function CreateQuizInner() {
           ? { ...q, options: q.options.map((o, j) => (j === optIdx ? value : o)) }
           : q
       )
+    );
+  }
+
+  function addOption(qIdx: number) {
+    setQuestions((prev) =>
+      prev.map((q, i) =>
+        i === qIdx ? { ...q, options: [...q.options, ""] } : q
+      )
+    );
+  }
+
+  function removeOption(qIdx: number, optIdx: number) {
+    setQuestions((prev) =>
+      prev.map((q, i) => {
+        if (i !== qIdx || q.options.length <= 2) return q;
+        const newOptions = q.options.filter((_, j) => j !== optIdx);
+        let newCorrect = q.correctAnswerIndex;
+        if (newCorrect !== null) {
+          if (newCorrect === optIdx) newCorrect = null;
+          else if (newCorrect > optIdx) newCorrect--;
+        }
+        return { ...q, options: newOptions, correctAnswerIndex: newCorrect };
+      })
     );
   }
 
@@ -337,8 +360,23 @@ function CreateQuizInner() {
                         placeholder={`Opcao ${optIdx + 1}`}
                         className="retro-input flex-1 text-sm py-1.5"
                       />
+                      {q.options.length > 2 && (
+                        <button
+                          onClick={() => removeOption(qIdx, optIdx)}
+                          className="text-red-400 hover:text-red-600 font-bold text-sm px-1"
+                          title="Remover opcao"
+                        >
+                          X
+                        </button>
+                      )}
                     </div>
                   ))}
+                  <button
+                    onClick={() => addOption(qIdx)}
+                    className="text-xs font-bold text-amber-700 hover:text-amber-900 underline mt-1"
+                  >
+                    + Adicionar opcao
+                  </button>
                   <p className="text-xs text-amber-600 mt-1">
                     Seleciona o radio da resposta correta
                   </p>
