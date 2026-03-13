@@ -340,9 +340,16 @@ function HostReveal({
 }
 
 // --- Finished View ---
-function HostFinished({ players }: { players: Player[] }) {
+function HostFinished({ code, players }: { code: string; players: Player[] }) {
   const sorted = [...players].sort((a, b) => b.score - a.score);
   const medals = ["🥇", "🥈", "🥉"];
+  const [resetting, setResetting] = useState(false);
+
+  async function resetGame() {
+    setResetting(true);
+    await fetch(`/api/rooms/${code}/reset`, { method: "POST" });
+    setResetting(false);
+  }
 
   return (
     <div className="text-center space-y-6">
@@ -395,6 +402,14 @@ function HostFinished({ players }: { players: Player[] }) {
           ))}
         </div>
       </div>
+
+      <button
+        onClick={resetGame}
+        disabled={resetting}
+        className="retro-button retro-button-green text-xl px-12"
+      >
+        {resetting ? "A reiniciar..." : "Jogar Outra Vez"}
+      </button>
     </div>
   );
 }
@@ -460,7 +475,7 @@ export default function HostPage() {
           />
         )}
 
-        {room.phase === "finished" && <HostFinished players={players} />}
+        {room.phase === "finished" && <HostFinished code={code} players={players} />}
       </div>
     </div>
   );
