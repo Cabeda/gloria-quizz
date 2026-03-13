@@ -1,0 +1,86 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Quiz {
+  id        String     @id
+  title     String
+  createdAt DateTime?  @default(now()) @map("created_at") @db.Timestamptz
+  questions Question[]
+  rooms     Room[]
+
+  @@map("quizzes")
+}
+
+model Question {
+  id            String   @id
+  quizId        String   @map("quiz_id")
+  text          String
+  type          String
+  options       Json?    @db.JsonB
+  correctAnswer String?  @map("correct_answer")
+  points        Int?     @default(1)
+  sortOrder     Int      @map("sort_order")
+  timeLimit     Int?     @map("time_limit")
+  quiz          Quiz     @relation(fields: [quizId], references: [id])
+  answers       Answer[]
+
+  @@index([quizId, sortOrder])
+  @@map("questions")
+}
+
+model Room {
+  id                   String    @id
+  quizId               String    @map("quiz_id")
+  phase                String?   @default("lobby")
+  currentQuestionIndex Int?      @default(0) @map("current_question_index")
+  questionOpen         Boolean?  @default(false) @map("question_open")
+  questionStartedAt    DateTime? @map("question_started_at") @db.Timestamptz
+  createdAt            DateTime? @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt            DateTime? @default(now()) @map("updated_at") @db.Timestamptz
+  quiz                 Quiz      @relation(fields: [quizId], references: [id])
+  players              Player[]
+  answers              Answer[]
+
+  @@index([quizId])
+  @@map("rooms")
+}
+
+model Player {
+  id          String    @id
+  roomId      String    @map("room_id")
+  name        String
+  emoji       String
+  color       String
+  score       Int?      @default(0)
+  isConnected Boolean?  @default(true) @map("is_connected")
+  joinedAt    DateTime? @default(now()) @map("joined_at") @db.Timestamptz
+  room        Room      @relation(fields: [roomId], references: [id])
+  answers     Answer[]
+
+  @@index([roomId])
+  @@map("players")
+}
+
+model Answer {
+  id         String    @id
+  roomId     String    @map("room_id")
+  questionId String    @map("question_id")
+  playerId   String    @map("player_id")
+  answerText String?   @map("answer_text")
+  isCorrect  Boolean?  @map("is_correct")
+  answeredAt DateTime? @default(now()) @map("answered_at") @db.Timestamptz
+  room       Room      @relation(fields: [roomId], references: [id])
+  question   Question  @relation(fields: [questionId], references: [id])
+  player     Player    @relation(fields: [playerId], references: [id])
+
+  @@unique([roomId, questionId, playerId])
+  @@index([roomId, questionId])
+  @@index([playerId])
+  @@map("answers")
+}
