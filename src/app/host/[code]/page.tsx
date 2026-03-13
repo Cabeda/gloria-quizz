@@ -509,14 +509,15 @@ function HostQuestion({
   // For open-ended, just close answers so host can grade before revealing
   useEffect(() => {
     if (allAnswered && questionOpen) {
-      if (questionType === "open-ended") {
+      if (questionType === "multiple-choice") {
         const timer = setTimeout(() => {
-          patchRoom(code, { questionOpen: false });
+          patchRoom(code, { phase: "reveal", questionOpen: false });
         }, 2000);
         return () => clearTimeout(timer);
       } else {
+        // Open-ended or any other type: just close answers, don't reveal
         const timer = setTimeout(() => {
-          patchRoom(code, { phase: "reveal", questionOpen: false });
+          patchRoom(code, { questionOpen: false });
         }, 2000);
         return () => clearTimeout(timer);
       }
@@ -579,7 +580,7 @@ function HostQuestion({
           </div>
         )}
 
-        {questionType === "open-ended" && answers.length > 0 && (
+        {questionType !== "multiple-choice" && answers.length > 0 && (
           <div className="space-y-2 mb-6">
             <h3 className="font-bold text-amber-800 text-lg">
               Respostas:{questionOpen ? " (a receber...)" : ""}
@@ -638,17 +639,17 @@ function HostQuestion({
             Fechar Respostas
           </button>
         )}
-        {!questionOpen && questionType === "open-ended" && (answers.length === 0 || answers.some((a) => a.isCorrect === null)) && (
+        {!questionOpen && questionType !== "multiple-choice" && (answers.length === 0 || answers.some((a) => a.isCorrect === null)) && (
           <p className="text-amber-200 font-bold self-center">
             {answers.length === 0 ? "Ninguem respondeu ainda" : "Avalia todas as respostas antes de revelar"}
           </p>
         )}
-        {!questionOpen && questionType === "open-ended" && answers.length > 0 && answers.every((a) => a.isCorrect !== null) && (
+        {!questionOpen && questionType !== "multiple-choice" && answers.length > 0 && answers.every((a) => a.isCorrect !== null) && (
           <button onClick={showReveal} className="retro-button">
             Revelar Resultado
           </button>
         )}
-        {!questionOpen && questionType !== "open-ended" && (
+        {!questionOpen && questionType === "multiple-choice" && (
           <button onClick={showReveal} className="retro-button">
             Revelar Resultado
           </button>
