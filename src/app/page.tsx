@@ -8,14 +8,29 @@ export default function Home() {
   const [joinCode, setJoinCode] = useState("");
   const [joinError, setJoinError] = useState("");
 
-  function handleJoin(e: React.FormEvent) {
+  const [joining, setJoining] = useState(false);
+
+  async function handleJoin(e: React.FormEvent) {
     e.preventDefault();
     const code = joinCode.trim().toUpperCase();
     if (code.length < 4) {
       setJoinError("Codigo invalido");
       return;
     }
-    router.push(`/play/${code}`);
+    setJoining(true);
+    setJoinError("");
+    try {
+      const res = await fetch(`/api/rooms/${code}`);
+      if (!res.ok) {
+        setJoinError("Sala nao encontrada");
+        return;
+      }
+      router.push(`/play/${code}`);
+    } catch {
+      setJoinError("Erro ao procurar sala");
+    } finally {
+      setJoining(false);
+    }
   }
 
   return (
@@ -62,9 +77,10 @@ export default function Home() {
           )}
           <button
             type="submit"
+            disabled={joining}
             className="retro-button retro-button-secondary w-full"
           >
-            Entrar na Sala
+            {joining ? "A procurar..." : "Entrar na Sala"}
           </button>
         </form>
       </div>

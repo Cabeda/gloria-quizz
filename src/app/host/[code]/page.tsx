@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useRoomState } from "../../hooks/useRoomState";
 import type { Player, Answer, Question } from "../../types";
 import QRCode from "qrcode";
@@ -659,6 +659,7 @@ function HostFinished({ players }: { players: Player[] }) {
 // --- Main Host Page ---
 export default function HostPage() {
   const params = useParams();
+  const router = useRouter();
   const code = params.code as string;
   const { state, error, loading } = useRoomState(code);
   const [editing, setEditing] = useState(false);
@@ -684,14 +685,8 @@ export default function HostPage() {
   }
 
   if (error || !state) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="retro-card p-12 text-center">
-          <div className="text-5xl mb-4">😕</div>
-          <p className="text-red-600 font-bold text-lg">{error || "Sala nao encontrada"}</p>
-        </div>
-      </div>
-    );
+    router.replace("/");
+    return null;
   }
 
   const { room, quiz, players, currentQuestion, answers } = state;

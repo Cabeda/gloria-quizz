@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useRoomState } from "../../hooks/useRoomState";
 import type { Player, Answer } from "../../types";
 
@@ -430,6 +430,7 @@ function PlayerFinished({ player, players }: { player: Player; players: Player[]
 // --- Main Player Page ---
 export default function PlayPage() {
   const params = useParams();
+  const router = useRouter();
   const code = params.code as string;
   const [player, setPlayer] = useState<Player | null>(null);
   const [restoringSession, setRestoringSession] = useState(true);
@@ -514,14 +515,8 @@ export default function PlayPage() {
   }
 
   if (error || !state) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="retro-card p-8 text-center">
-          <div className="text-4xl mb-3">😕</div>
-          <p className="text-red-600 font-bold">{error || "Sala nao encontrada"}</p>
-        </div>
-      </div>
-    );
+    router.replace("/");
+    return null;
   }
 
   const { room, quiz, players, currentQuestion, answers } = state;
