@@ -954,18 +954,25 @@ export default function HostPage() {
   const [editing, setEditing] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [resetting, setResetting] = useState(false);
-  const { play, muted, toggleMute } = useSound();
+  const { play, muted, toggleMute, startMusic, stopMusic } = useSound();
 
-  // Play sounds on phase transitions
+  // Play sounds + music on phase transitions
   const phase = state?.room.phase;
   const prevPhaseRef = useRef<string | undefined>(undefined);
   useEffect(() => {
     if (phase && phase !== prevPhaseRef.current) {
+      if (phase === "question") startMusic();
+      if (phase !== "question") stopMusic();
       if (phase === "reveal") play("reveal");
       if (phase === "finished") play("fanfare");
       prevPhaseRef.current = phase;
     }
-  }, [phase, play]);
+  }, [phase, play, startMusic, stopMusic]);
+
+  // Stop music on unmount
+  useEffect(() => {
+    return () => stopMusic();
+  }, [stopMusic]);
 
   async function resetGame() {
     setResetting(true);

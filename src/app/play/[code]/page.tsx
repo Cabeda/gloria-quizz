@@ -568,7 +568,7 @@ export default function PlayPage() {
   const [lastPointsAwarded, setLastPointsAwarded] = useState<number | null>(null);
   const lastQuestionIndexRef = useRef<number | null>(null);
   const [playerSeen, setPlayerSeen] = useState(false);
-  const { play, muted, toggleMute } = useSound();
+  const { play, muted, toggleMute, startMusic, stopMusic } = useSound();
 
   // Always poll room state so we can restore session and track game progress
   const { state, error, loading, refetch } = useRoomState(code);
@@ -621,11 +621,13 @@ export default function PlayPage() {
 
   const restoringSession = loading;
 
-  // Play correct/wrong sound when entering reveal phase
+  // Play correct/wrong sound + music on phase transitions
   const prevPhaseRef = useRef<string | undefined>(undefined);
   useEffect(() => {
     const phase = state?.room.phase;
     if (phase && phase !== prevPhaseRef.current) {
+      if (phase === "question") startMusic();
+      if (phase !== "question") stopMusic();
       if (phase === "reveal" && player && state) {
         const myAnswer = state.answers.find((a) => a.playerId === player.id);
         if (myAnswer?.isCorrect) {
@@ -636,7 +638,12 @@ export default function PlayPage() {
       }
       prevPhaseRef.current = phase;
     }
-  }, [state?.room.phase, state, player, play]);
+  }, [state?.room.phase, state, player, play, startMusic, stopMusic]);
+
+  // Stop music on unmount
+  useEffect(() => {
+    return () => stopMusic();
+  }, [stopMusic]);
 
   function handleJoined(p: Player) {
     localStorage.setItem(`player-${code}`, p.id);
