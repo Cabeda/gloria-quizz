@@ -43,7 +43,7 @@
 
 ## Testing & CI
 - [x] Vitest config with v8 coverage (90% thresholds)
-- [x] Unit tests for all API routes (57 tests, 11 files)
+- [x] Unit tests for all API routes (62 tests, 11 files)
 - [x] GitHub Actions CI workflow (test + lint)
 - [x] Coverage: 99.32% statements, 93.87% branches, 95% functions, 100% lines
 
@@ -84,21 +84,21 @@
 Adds urgency and rewards fast answers — the core of what makes quiz games exciting.
 
 ### Backend
-- [ ] Add `timeLimit` column to questions table (nullable int, seconds, default null = no timer)
-- [ ] Update Prisma schema + generate client
-- [ ] Update `POST /api/rooms/[code]/answer` — record `answeredAt` timestamp, calculate speed bonus
-  - Speed bonus formula: `basePoints * (timeRemaining / timeLimit)` rounded, minimum 1 point if correct
-- [ ] Update `GET /api/rooms/[code]` — include `timeLimit` in currentQuestion, include `questionStartedAt` in room state
-- [ ] Add `questionStartedAt` column to rooms table (nullable timestamp)
-- [ ] Update `PATCH /api/rooms/[code]` — set `questionStartedAt = now()` when opening a question
-- [ ] Tests for speed bonus calculation (fast answer = more points, slow answer = fewer points, expired = 0)
+- [x] Add `timeLimit` column to questions table (nullable int, seconds, default null = no timer)
+- [x] Update Prisma schema + generate client
+- [x] Update `POST /api/rooms/[code]/answer` — record `answeredAt` timestamp, calculate speed bonus
+  - Speed bonus formula: `basePoints + basePoints * (timeRemaining / timeLimit)` rounded
+- [x] Update `GET /api/rooms/[code]` — include `timeLimit` in currentQuestion, include `questionStartedAt` in room state
+- [x] Add `questionStartedAt` column to rooms table (nullable timestamp)
+- [x] Update `PATCH /api/rooms/[code]` — set `questionStartedAt = now()` when opening a question
+- [x] Tests for speed bonus calculation (fast answer, slow answer, expired, wrong+timer, no timer — 5 tests)
 
 ### Frontend
-- [ ] Quiz creator (`/create`) — add timer dropdown per question (Sem limite / 10s / 20s / 30s / 60s)
-- [ ] Host QuizEditor — same timer dropdown
-- [ ] Host question view — show countdown timer (circular or bar), auto-close when expired
-- [ ] Player question view — show countdown timer, disable answer buttons when expired
-- [ ] Player reveal — show speed bonus breakdown ("5 pontos + 3 bonus de velocidade")
+- [x] Quiz creator (`/create`) — add timer dropdown per question (Sem limite / 10s / 20s / 30s / 60s)
+- [x] Host QuizEditor — same timer dropdown
+- [x] Host question view — circular countdown timer, auto-close when expired
+- [x] Player question view — countdown timer, disable answer buttons when expired, "Tempo esgotado!" message
+- [x] Player reveal — speed bonus breakdown ("X pontos + Y bonus de velocidade")
 
 ## Feature: Sound Effects
 Even 3-4 sounds transform the vibe from silent app to party game.
@@ -116,9 +116,9 @@ Even 3-4 sounds transform the vibe from silent app to party game.
 Gives the host confidence to pace the game — "everyone answered, let's reveal!"
 
 ### Implementation
-- [ ] Host question view — show "X/Y responderam" counter (already have answers in state, just display it)
-- [ ] Animate the counter as answers come in
-- [ ] Auto-advance option: when all players answered, show a "Todos responderam!" flash + auto-reveal after 2s
+- [x] Host question view — show "X/Y responderam" counter with progress bar
+- [x] Animate the counter as answers come in
+- [x] Auto-advance: when all players answered, show "Todos responderam!" flash + auto-reveal after 2s
 
 ## Feature: Podium Finish
 A dramatic 3rd → 2nd → 1st reveal makes the ending feel like an event.
@@ -134,9 +134,10 @@ A dramatic 3rd → 2nd → 1st reveal makes the ending feel like an event.
 Fuels competition by showing players where they stand after each question.
 
 ### Implementation
-- [ ] Player reveal view — show current rank ("Estas em 2o lugar!") with gap to 1st
-- [ ] Show rank change indicator (arrow up/down/same) compared to previous question
-- [ ] Leaderboard mini-view on player screen (top 3 + player's own position)
+- [x] Player reveal view — show current rank ("Estas em 2o lugar!") with gap to 1st
+- [x] Medal emojis for top 3 positions
+- [x] "Estas na lideranca!" message for 1st place
+- [x] Leaderboard mini-view on player screen (top 5 + player's own position highlighted)
 
 ## Feature: Emoji Reactions
 Low effort, high fun — players send quick reactions that appear on the host screen.
