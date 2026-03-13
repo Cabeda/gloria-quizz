@@ -27,6 +27,7 @@ export interface Player {
   score: number;
   isConnected: boolean;
   joinedAt?: string;
+  streak?: number;
 }
 
 export interface Answer {

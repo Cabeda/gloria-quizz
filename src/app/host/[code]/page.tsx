@@ -692,14 +692,18 @@ function HostReveal({
           <div>
             <p className="text-green-600 font-bold text-lg mb-2">Acertaram ({correctPlayers.length})</p>
             <div className="flex flex-wrap gap-2 justify-center">
-              {correctPlayers.map((a) => (
+              {correctPlayers.map((a) => {
+                const p = players.find((pl) => pl.id === a.playerId);
+                const streak = p?.streak ?? 0;
+                return (
                 <span
                   key={a.id}
                   className="bg-green-100 text-green-800 font-bold px-3 py-1 rounded-lg text-sm animate-bounce-in"
                 >
-                  {a.playerEmoji} {a.playerName}
+                  {a.playerEmoji} {a.playerName}{streak >= 3 ? ` 🔥${streak}` : ""}
                 </span>
-              ))}
+                );
+              })}
             </div>
           </div>
           <div>
@@ -738,6 +742,11 @@ function HostReveal({
                   {p.emoji}
                 </span>
                 <span className="font-bold text-amber-900">{p.name}</span>
+                {(p.streak ?? 0) >= 3 && (
+                  <span className="text-orange-500 font-extrabold text-sm animate-pulse">
+                    🔥{p.streak}
+                  </span>
+                )}
               </div>
               <span className="font-extrabold text-amber-800 text-lg">{p.score} pts</span>
             </div>

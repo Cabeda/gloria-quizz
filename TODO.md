@@ -167,14 +167,15 @@ Drag-to-reorder in the quiz editor helps organizers adjust on the fly.
 "3 respostas certas seguidas!" builds momentum and adds a meta-game.
 
 ### Backend
-- [ ] Track streak per player — count consecutive correct answers
-- [ ] Include streak in room state response (per player)
-- [ ] Streak bonus: 3+ streak = 1.5x points, 5+ streak = 2x points
+- [x] Track streak per player — count consecutive correct answers (computed from answers table, no schema change)
+- [x] Include streak in room state response (per player)
+- [x] Streak bonus: 3+ streak = 1.5x points, 5+ streak = 2x points
+- [x] Tests for streak bonus (4 tests: no streak, 1.5x at 3, 2x at 5, reset after wrong)
 
 ### Frontend
-- [ ] Player: show streak counter with fire animation ("🔥 3 seguidas!")
-- [ ] Host reveal: highlight players on streaks
-- [ ] Streak break notification ("Perdeste a streak!")
+- [x] Player: show streak counter with fire animation ("🔥 3 seguidas!")
+- [x] Host reveal: highlight players on streaks (fire emoji in leaderboard + correct list)
+- [x] Streak break notification ("Perdeste a streak!")
 
 ## Feature: Quiz Library
 Save and reuse quizzes — saves organizers time for recurring events.

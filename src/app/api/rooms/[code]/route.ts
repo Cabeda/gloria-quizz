@@ -1,6 +1,35 @@
 import { prisma } from "@/app/lib/prisma";
 import { NextResponse } from "next/server";
 
+/** Compute current streak for each player from their answer history. */
+async function addStreaks(
+  roomId: string,
+  players: { id: string; roomId: string; name: string; emoji: string; color: string; score: number | null; isConnected: boolean | null; joinedAt: Date | null }[]
+) {
+  if (players.length === 0) return players.map((p) => ({ ...p, streak: 0 }));
+
+  // Fetch all answers for this room, ordered by answeredAt desc
+  const allAnswers = await prisma.answer.findMany({
+    where: { roomId },
+    orderBy: { answeredAt: "desc" },
+    select: { playerId: true, isCorrect: true },
+  });
+
+  // Group by player and count consecutive correct from most recent
+  const streakMap = new Map<string, number>();
+  const seenBreak = new Set<string>();
+  for (const a of allAnswers) {
+    if (seenBreak.has(a.playerId)) continue;
+    if (a.isCorrect === true) {
+      streakMap.set(a.playerId, (streakMap.get(a.playerId) || 0) + 1);
+    } else {
+      seenBreak.add(a.playerId);
+    }
+  }
+
+  return players.map((p) => ({ ...p, streak: streakMap.get(p.id) || 0 }));
+}
+
 export async function GET(_request: Request, { params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
 
@@ -67,7 +96,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ cod
       createdAt: room.createdAt, updatedAt: room.updatedAt,
     },
     quiz: { id: room.quiz.id, title: room.quiz.title, questions },
-    players: room.players,
+    players: await addStreaks(code, room.players),
     currentQuestion,
     answers,
   });

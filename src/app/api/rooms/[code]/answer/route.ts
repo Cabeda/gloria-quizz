@@ -17,6 +17,34 @@ function calculatePoints(basePoints: number, timeLimit: number | null, questionS
   return basePoints + speedBonus;
 }
 
+/** Get streak multiplier based on consecutive correct answers.
+ *  3-4 streak = 1.5x, 5+ streak = 2x, otherwise 1x. */
+function getStreakMultiplier(streak: number): number {
+  if (streak >= 5) return 2;
+  if (streak >= 3) return 1.5;
+  return 1;
+}
+
+/** Count consecutive correct answers for a player (most recent first).
+ *  Stops at the first non-correct answer. */
+async function getPlayerStreak(roomId: string, playerId: string): Promise<number> {
+  const answers = await prisma.answer.findMany({
+    where: { roomId, playerId },
+    orderBy: { answeredAt: "desc" },
+    select: { isCorrect: true },
+  });
+
+  let streak = 0;
+  for (const a of answers) {
+    if (a.isCorrect === true) {
+      streak++;
+    } else {
+      break;
+    }
+  }
+  return streak;
+}
+
 export async function POST(request: Request, { params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
   const body = await request.json();
@@ -54,7 +82,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
 
   const answerId = nanoid(12);
   const basePoints = question.points || 1;
-  const totalPoints = calculatePoints(basePoints, question.timeLimit, room.questionStartedAt);
+  const speedPoints = calculatePoints(basePoints, question.timeLimit, room.questionStartedAt);
+
+  // Apply streak bonus for correct MC answers
+  let totalPoints = speedPoints;
+  let streak = 0;
+  if (isCorrect) {
+    streak = await getPlayerStreak(code, playerId);
+    // streak is the count BEFORE this answer — this correct answer extends it
+    const multiplier = getStreakMultiplier(streak + 1);
+    totalPoints = Math.round(speedPoints * multiplier);
+  }
 
   // Insert answer + award points in parallel if correct
   if (isCorrect) {
@@ -73,5 +111,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
     });
   }
 
-  return NextResponse.json({ id: answerId, isCorrect, pointsAwarded: isCorrect ? totalPoints : 0 });
+  return NextResponse.json({
+    id: answerId,
+    isCorrect,
+    pointsAwarded: isCorrect ? totalPoints : 0,
+    streak: isCorrect ? streak + 1 : 0,
+  });
 }

@@ -18,6 +18,7 @@ describe("POST /api/rooms/[code]/answer", () => {
     resetMocks();
     mockPrisma.room.findUnique.mockResolvedValue({ id: "ABC123", questionOpen: true, questionStartedAt: null });
     mockPrisma.answer.findFirst.mockResolvedValue(null);
+    mockPrisma.answer.findMany.mockResolvedValue([]); // no previous answers = streak 0
     mockPrisma.question.findUnique.mockResolvedValue({
       id: "q1", type: "multiple-choice", correctAnswer: "Paris", points: 2, timeLimit: null,
     });
@@ -219,6 +220,8 @@ describe("POST /api/rooms/[code]/answer", () => {
     mockPrisma.question.findUnique.mockResolvedValue({
       id: "q1", type: "multiple-choice", correctAnswer: "Paris", points: 3, timeLimit: null,
     });
+    // No previous answers = no streak
+    mockPrisma.answer.findMany.mockResolvedValue([]);
 
     const { request, params } = makeRequest("ABC123", {
       playerId: "p1",
@@ -229,5 +232,94 @@ describe("POST /api/rooms/[code]/answer", () => {
     const data = await res.json();
     expect(data.isCorrect).toBe(true);
     expect(data.pointsAwarded).toBe(3);
+    expect(data.streak).toBe(1);
+  });
+
+  // --- Streak bonus tests ---
+
+  it("returns streak 0 for wrong answer", async () => {
+    mockPrisma.answer.findMany.mockResolvedValue([]);
+
+    const { request, params } = makeRequest("ABC123", {
+      playerId: "p1",
+      questionId: "q1",
+      answerText: "London",
+    });
+    const res = await POST(request, { params });
+    const data = await res.json();
+    expect(data.isCorrect).toBe(false);
+    expect(data.streak).toBe(0);
+  });
+
+  it("awards 1.5x streak bonus at 3 consecutive correct answers", async () => {
+    mockPrisma.room.findUnique.mockResolvedValue({ id: "ABC123", questionOpen: true, questionStartedAt: null });
+    mockPrisma.question.findUnique.mockResolvedValue({
+      id: "q1", type: "multiple-choice", correctAnswer: "Paris", points: 2, timeLimit: null,
+    });
+    // 2 previous correct answers (most recent first) — this will be the 3rd
+    mockPrisma.answer.findMany.mockResolvedValue([
+      { isCorrect: true },
+      { isCorrect: true },
+    ]);
+
+    const { request, params } = makeRequest("ABC123", {
+      playerId: "p1",
+      questionId: "q1",
+      answerText: "Paris",
+    });
+    const res = await POST(request, { params });
+    const data = await res.json();
+    expect(data.isCorrect).toBe(true);
+    expect(data.pointsAwarded).toBe(3); // 2 * 1.5 = 3
+    expect(data.streak).toBe(3);
+  });
+
+  it("awards 2x streak bonus at 5 consecutive correct answers", async () => {
+    mockPrisma.room.findUnique.mockResolvedValue({ id: "ABC123", questionOpen: true, questionStartedAt: null });
+    mockPrisma.question.findUnique.mockResolvedValue({
+      id: "q1", type: "multiple-choice", correctAnswer: "Paris", points: 2, timeLimit: null,
+    });
+    // 4 previous correct answers — this will be the 5th
+    mockPrisma.answer.findMany.mockResolvedValue([
+      { isCorrect: true },
+      { isCorrect: true },
+      { isCorrect: true },
+      { isCorrect: true },
+    ]);
+
+    const { request, params } = makeRequest("ABC123", {
+      playerId: "p1",
+      questionId: "q1",
+      answerText: "Paris",
+    });
+    const res = await POST(request, { params });
+    const data = await res.json();
+    expect(data.isCorrect).toBe(true);
+    expect(data.pointsAwarded).toBe(4); // 2 * 2 = 4
+    expect(data.streak).toBe(5);
+  });
+
+  it("streak resets after a wrong answer", async () => {
+    mockPrisma.room.findUnique.mockResolvedValue({ id: "ABC123", questionOpen: true, questionStartedAt: null });
+    mockPrisma.question.findUnique.mockResolvedValue({
+      id: "q1", type: "multiple-choice", correctAnswer: "Paris", points: 2, timeLimit: null,
+    });
+    // Most recent answer was wrong, so streak is 0 — this correct answer starts a new streak of 1
+    mockPrisma.answer.findMany.mockResolvedValue([
+      { isCorrect: false },
+      { isCorrect: true },
+      { isCorrect: true },
+    ]);
+
+    const { request, params } = makeRequest("ABC123", {
+      playerId: "p1",
+      questionId: "q1",
+      answerText: "Paris",
+    });
+    const res = await POST(request, { params });
+    const data = await res.json();
+    expect(data.isCorrect).toBe(true);
+    expect(data.pointsAwarded).toBe(2); // streak 1 = no bonus
+    expect(data.streak).toBe(1);
   });
 });

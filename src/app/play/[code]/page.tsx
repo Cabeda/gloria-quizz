@@ -435,6 +435,17 @@ function PlayerReveal({
             </div>
           )}
 
+          {isCorrect && (player.streak ?? 0) >= 3 && (
+            <p className="text-orange-500 font-extrabold mt-2 animate-pulse">
+              🔥 {player.streak} seguidas!{" "}
+              {(player.streak ?? 0) >= 5 ? "(2x bonus!)" : "(1.5x bonus!)"}
+            </p>
+          )}
+
+          {!isCorrect && answer && (player.streak ?? 0) === 0 && players.find((p) => p.id === player.id) && (
+            <p className="text-amber-500 text-sm font-bold mt-1">Perdeste a streak!</p>
+          )}
+
           {correctAnswer && (
             <p className="text-amber-700 font-bold mt-2">
               Resposta: <span className="text-amber-900">{correctAnswer}</span>
