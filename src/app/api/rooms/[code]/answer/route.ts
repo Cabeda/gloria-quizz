@@ -2,6 +2,21 @@ import { prisma } from "@/app/lib/prisma";
 import { nanoid } from "nanoid";
 import { NextResponse } from "next/server";
 
+/** Calculate total points including speed bonus.
+ *  Formula: basePoints + basePoints * (timeRemaining / timeLimit), rounded.
+ *  Minimum 1 point if correct. No bonus if no timer. */
+function calculatePoints(basePoints: number, timeLimit: number | null, questionStartedAt: Date | null): number {
+  if (!timeLimit || !questionStartedAt) return basePoints;
+
+  const elapsed = (Date.now() - new Date(questionStartedAt).getTime()) / 1000;
+  const timeRemaining = Math.max(0, timeLimit - elapsed);
+
+  if (timeRemaining <= 0) return basePoints; // no bonus if time ran out
+
+  const speedBonus = Math.round(basePoints * (timeRemaining / timeLimit));
+  return basePoints + speedBonus;
+}
+
 export async function POST(request: Request, { params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
   const body = await request.json();
@@ -13,8 +28,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
 
   // Run room check + question fetch + duplicate check in parallel
   const [room, question, existing] = await Promise.all([
-    prisma.room.findUnique({ where: { id: code }, select: { questionOpen: true } }),
-    prisma.question.findUnique({ where: { id: questionId }, select: { type: true, correctAnswer: true, points: true } }),
+    prisma.room.findUnique({ where: { id: code }, select: { questionOpen: true, questionStartedAt: true } }),
+    prisma.question.findUnique({ where: { id: questionId }, select: { type: true, correctAnswer: true, points: true, timeLimit: true } }),
     prisma.answer.findFirst({ where: { roomId: code, questionId, playerId } }),
   ]);
 
@@ -38,6 +53,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
   }
 
   const answerId = nanoid(12);
+  const basePoints = question.points || 1;
+  const totalPoints = calculatePoints(basePoints, question.timeLimit, room.questionStartedAt);
 
   // Insert answer + award points in parallel if correct
   if (isCorrect) {
@@ -47,7 +64,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
       }),
       prisma.player.update({
         where: { id: playerId },
-        data: { score: { increment: question.points || 1 } },
+        data: { score: { increment: totalPoints } },
       }),
     ]);
   } else {
@@ -56,5 +73,5 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
     });
   }
 
-  return NextResponse.json({ id: answerId, isCorrect });
+  return NextResponse.json({ id: answerId, isCorrect, pointsAwarded: isCorrect ? totalPoints : 0 });
 }

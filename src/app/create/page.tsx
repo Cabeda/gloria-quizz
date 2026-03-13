@@ -10,6 +10,7 @@ interface DraftQuestion {
   options: string[];
   correctAnswerIndex: number | null;
   points: number;
+  timeLimit: number | null;
 }
 
 const emptyQuestion = (): DraftQuestion => ({
@@ -18,6 +19,7 @@ const emptyQuestion = (): DraftQuestion => ({
   options: ["", "", "", ""],
   correctAnswerIndex: null,
   points: 1,
+  timeLimit: null,
 });
 
 export default function CreateQuizPage() {
@@ -88,6 +90,7 @@ export default function CreateQuizPage() {
             ? q.options[q.correctAnswerIndex]?.trim()
             : undefined,
           points: q.points,
+          timeLimit: q.timeLimit,
         })),
       };
 
@@ -159,6 +162,20 @@ export default function CreateQuizPage() {
                     }
                     className="retro-input w-20 text-center text-sm py-1 px-2"
                   />
+                  <label className="text-xs text-amber-600 font-bold">Tempo:</label>
+                  <select
+                    value={q.timeLimit ?? ""}
+                    onChange={(e) =>
+                      updateQuestion(qIdx, { timeLimit: e.target.value ? parseInt(e.target.value) : null })
+                    }
+                    className="retro-input text-sm py-1 px-2"
+                  >
+                    <option value="">Sem limite</option>
+                    <option value="10">10s</option>
+                    <option value="20">20s</option>
+                    <option value="30">30s</option>
+                    <option value="60">60s</option>
+                  </select>
                   {questions.length > 1 && (
                     <button
                       onClick={() => removeQuestion(qIdx)}

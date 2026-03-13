@@ -26,6 +26,7 @@ model Question {
   correctAnswer String?  @map("correct_answer")
   points        Int?     @default(1)
   sortOrder     Int      @map("sort_order")
+  timeLimit     Int?     @map("time_limit")
   quiz          Quiz     @relation(fields: [quizId], references: [id])
   answers       Answer[]
 
@@ -39,6 +40,7 @@ model Room {
   phase                String?   @default("lobby")
   currentQuestionIndex Int?      @default(0) @map("current_question_index")
   questionOpen         Boolean?  @default(false) @map("question_open")
+  questionStartedAt    DateTime? @map("question_started_at") @db.Timestamptz
   createdAt            DateTime? @default(now()) @map("created_at") @db.Timestamptz
   updatedAt            DateTime? @default(now()) @map("updated_at") @db.Timestamptz
   quiz                 Quiz      @relation(fields: [quizId], references: [id])

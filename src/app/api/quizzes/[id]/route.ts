@@ -28,6 +28,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       correctAnswer: q.correctAnswer,
       points: q.points,
       sortOrder: q.sortOrder,
+      timeLimit: q.timeLimit,
     })),
   });
 }
@@ -52,7 +53,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   if (questions) {
     ops.push(prisma.question.deleteMany({ where: { quizId: id } }));
     ops.push(prisma.question.createMany({
-      data: questions.map((q: { id?: string; text: string; type: string; options?: string[]; correctAnswer?: string; points?: number }, i: number) => ({
+      data: questions.map((q: { id?: string; text: string; type: string; options?: string[]; correctAnswer?: string; points?: number; timeLimit?: number | null }, i: number) => ({
         id: q.id || nanoid(12),
         quizId: id,
         text: q.text,
@@ -60,6 +61,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         options: q.options || [],
         correctAnswer: q.correctAnswer || null,
         points: q.points || 1,
+        timeLimit: q.timeLimit ?? null,
         sortOrder: i,
       })),
     }));

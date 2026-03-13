@@ -31,6 +31,7 @@ interface DraftQuestion {
   options: string[];
   correctAnswerIndex: number | null;
   points: number;
+  timeLimit: number | null;
 }
 
 function questionToDraft(q: Question): DraftQuestion {
@@ -47,6 +48,7 @@ function questionToDraft(q: Question): DraftQuestion {
     options,
     correctAnswerIndex,
     points: q.points,
+    timeLimit: q.timeLimit ?? null,
   };
 }
 
@@ -56,6 +58,7 @@ const emptyDraft = (): DraftQuestion => ({
   options: ["", "", "", ""],
   correctAnswerIndex: null,
   points: 1,
+  timeLimit: null,
 });
 
 // --- Quiz Editor Panel ---
@@ -130,6 +133,7 @@ function QuizEditor({
               ? q.options[q.correctAnswerIndex]?.trim()
               : undefined,
             points: q.points,
+            timeLimit: q.timeLimit,
           })),
         }),
       });
@@ -170,6 +174,20 @@ function QuizEditor({
                     onChange={(e) => updateDraft(qIdx, { points: Math.max(1, parseInt(e.target.value) || 1) })}
                     className="retro-input w-20 text-center text-sm py-1 px-2"
                   />
+                  <label className="text-xs text-amber-600 font-bold">Tempo:</label>
+                  <select
+                    value={q.timeLimit ?? ""}
+                    onChange={(e) =>
+                      updateDraft(qIdx, { timeLimit: e.target.value ? parseInt(e.target.value) : null })
+                    }
+                    className="retro-input text-sm py-1 px-1"
+                  >
+                    <option value="">--</option>
+                    <option value="10">10s</option>
+                    <option value="20">20s</option>
+                    <option value="30">30s</option>
+                    <option value="60">60s</option>
+                  </select>
                   {drafts.length > 1 && (
                     <button onClick={() => removeDraft(qIdx)} className="text-red-500 hover:text-red-700 font-bold text-lg px-1">
                       X
@@ -337,6 +355,57 @@ function HostLobby({ code, players, quizId, questions, onEdit }: { code: string;
   );
 }
 
+// --- Countdown Timer Hook ---
+function useCountdown(timeLimit: number | null | undefined, questionStartedAt: string | null | undefined, active: boolean) {
+  const [remaining, setRemaining] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!timeLimit || !questionStartedAt || !active) {
+      setRemaining(null);
+      return;
+    }
+
+    function tick() {
+      const elapsed = (Date.now() - new Date(questionStartedAt!).getTime()) / 1000;
+      const left = Math.max(0, timeLimit! - elapsed);
+      setRemaining(Math.ceil(left));
+    }
+
+    tick();
+    const interval = setInterval(tick, 250);
+    return () => clearInterval(interval);
+  }, [timeLimit, questionStartedAt, active]);
+
+  return remaining;
+}
+
+// --- Countdown Display ---
+function CountdownDisplay({ remaining, timeLimit, size = "lg" }: { remaining: number; timeLimit: number; size?: "lg" | "sm" }) {
+  const pct = (remaining / timeLimit) * 100;
+  const isUrgent = remaining <= 5;
+  const isLg = size === "lg";
+
+  return (
+    <div className={`flex items-center gap-3 ${isLg ? "" : "gap-2"}`}>
+      <div className={`relative ${isLg ? "w-16 h-16" : "w-10 h-10"}`}>
+        <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
+          <circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" strokeWidth="3" className="text-amber-900/20" />
+          <circle
+            cx="18" cy="18" r="16" fill="none" strokeWidth="3"
+            strokeDasharray={`${pct} 100`}
+            strokeLinecap="round"
+            className={`transition-all duration-300 ${isUrgent ? "text-red-500" : "text-amber-400"}`}
+            stroke="currentColor"
+          />
+        </svg>
+        <span className={`absolute inset-0 flex items-center justify-center font-extrabold ${isLg ? "text-lg" : "text-sm"} ${isUrgent ? "text-red-500 animate-pulse-glow" : "text-amber-200"}`}>
+          {remaining}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 // --- Question View ---
 function HostQuestion({
   code,
@@ -348,6 +417,8 @@ function HostQuestion({
   answers,
   players,
   questionOpen,
+  timeLimit,
+  questionStartedAt,
   onEdit,
 }: {
   code: string;
@@ -359,8 +430,12 @@ function HostQuestion({
   answers: Answer[];
   players: Player[];
   questionOpen: boolean;
+  timeLimit?: number | null;
+  questionStartedAt?: string | null;
   onEdit: () => void;
 }) {
+  const remaining = useCountdown(timeLimit, questionStartedAt, questionOpen);
+
   async function closeQuestion() {
     await patchRoom(code, { questionOpen: false });
   }
@@ -372,6 +447,13 @@ function HostQuestion({
   const answeredCount = answers.length;
   const totalPlayers = players.length;
   const allAnswered = totalPlayers > 0 && answeredCount >= totalPlayers;
+
+  // Auto-close when timer expires
+  useEffect(() => {
+    if (remaining === 0 && questionOpen) {
+      patchRoom(code, { questionOpen: false });
+    }
+  }, [remaining, questionOpen, code]);
 
   // Auto-reveal when all players answered
   useEffect(() => {
@@ -389,9 +471,14 @@ function HostQuestion({
         <span className="text-amber-200 font-bold text-lg">
           Pergunta {questionIndex + 1} / {totalQuestions}
         </span>
-        <span className="text-amber-200 font-bold">
-          {answeredCount} / {totalPlayers} responderam
-        </span>
+        <div className="flex items-center gap-4">
+          {remaining !== null && timeLimit && (
+            <CountdownDisplay remaining={remaining} timeLimit={timeLimit} />
+          )}
+          <span className="text-amber-200 font-bold">
+            {answeredCount} / {totalPlayers} responderam
+          </span>
+        </div>
       </div>
 
       {/* Answer progress bar */}
@@ -737,6 +824,8 @@ export default function HostPage() {
             answers={answers}
             players={players}
             questionOpen={room.questionOpen}
+            timeLimit={currentQuestion.timeLimit}
+            questionStartedAt={room.questionStartedAt}
             onEdit={() => setEditing(true)}
           />
         )}

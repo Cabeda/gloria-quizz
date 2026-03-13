@@ -5,6 +5,56 @@ import { useParams, useRouter } from "next/navigation";
 import { useRoomState } from "../../hooks/useRoomState";
 import type { Player, Answer } from "../../types";
 
+// --- Countdown Timer Hook ---
+function useCountdown(timeLimit: number | null | undefined, questionStartedAt: string | null | undefined, active: boolean) {
+  const [remaining, setRemaining] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!timeLimit || !questionStartedAt || !active) {
+      setRemaining(null);
+      return;
+    }
+
+    function tick() {
+      const elapsed = (Date.now() - new Date(questionStartedAt!).getTime()) / 1000;
+      const left = Math.max(0, timeLimit! - elapsed);
+      setRemaining(Math.ceil(left));
+    }
+
+    tick();
+    const interval = setInterval(tick, 250);
+    return () => clearInterval(interval);
+  }, [timeLimit, questionStartedAt, active]);
+
+  return remaining;
+}
+
+// --- Countdown Display (compact for phone) ---
+function CountdownDisplay({ remaining, timeLimit }: { remaining: number; timeLimit: number }) {
+  const pct = (remaining / timeLimit) * 100;
+  const isUrgent = remaining <= 5;
+
+  return (
+    <div className="flex items-center gap-2">
+      <div className="relative w-10 h-10">
+        <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
+          <circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" strokeWidth="3" className="text-amber-900/20" />
+          <circle
+            cx="18" cy="18" r="16" fill="none" strokeWidth="3"
+            strokeDasharray={`${pct} 100`}
+            strokeLinecap="round"
+            className={`transition-all duration-300 ${isUrgent ? "text-red-500" : "text-amber-400"}`}
+            stroke="currentColor"
+          />
+        </svg>
+        <span className={`absolute inset-0 flex items-center justify-center font-extrabold text-sm ${isUrgent ? "text-red-500 animate-pulse-glow" : "text-amber-200"}`}>
+          {remaining}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 // --- Join Screen ---
 function JoinScreen({
   code,
@@ -144,15 +194,21 @@ function PlayerMCQuestion({
   options,
   questionIndex,
   totalQuestions,
+  timeLimit,
+  questionStartedAt,
   onAnswer,
 }: {
   questionText: string;
   options: string[];
   questionIndex: number;
   totalQuestions: number;
+  timeLimit?: number | null;
+  questionStartedAt?: string | null;
   onAnswer: (text: string) => void;
 }) {
   const [selected, setSelected] = useState<string | null>(null);
+  const remaining = useCountdown(timeLimit, questionStartedAt, selected === null);
+  const expired = remaining === 0;
   const colors = [
     "bg-retro-red hover:bg-red-600",
     "bg-retro-blue hover:bg-blue-700",
@@ -161,7 +217,7 @@ function PlayerMCQuestion({
   ];
 
   function handleSelect(opt: string) {
-    if (selected) return;
+    if (selected || expired) return;
     setSelected(opt);
     onAnswer(opt);
   }
@@ -169,10 +225,13 @@ function PlayerMCQuestion({
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-sm space-y-4">
-        <div className="text-center">
+        <div className="flex items-center justify-between">
           <span className="text-amber-200 font-bold text-sm">
             Pergunta {questionIndex + 1} / {totalQuestions}
           </span>
+          {remaining !== null && timeLimit && (
+            <CountdownDisplay remaining={remaining} timeLimit={timeLimit} />
+          )}
         </div>
 
         <div className="retro-card p-6">
@@ -181,24 +240,32 @@ function PlayerMCQuestion({
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 gap-3">
-          {options.map((opt, i) => (
-            <button
-              key={i}
-              onClick={() => handleSelect(opt)}
-              disabled={selected !== null}
-              className={`${colors[i % 4]} text-white font-bold text-lg p-4 rounded-xl text-center transition-all border-3 border-transparent ${
-                selected === opt
-                  ? "ring-4 ring-white scale-105"
-                  : selected !== null
-                  ? "opacity-50"
-                  : ""
-              }`}
-            >
-              {opt}
-            </button>
-          ))}
-        </div>
+        {expired && !selected ? (
+          <div className="text-center animate-bounce-in">
+            <div className="retro-card p-4 inline-block">
+              <p className="text-red-600 font-bold text-lg">Tempo esgotado!</p>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-3">
+            {options.map((opt, i) => (
+              <button
+                key={i}
+                onClick={() => handleSelect(opt)}
+                disabled={selected !== null || expired}
+                className={`${colors[i % 4]} text-white font-bold text-lg p-4 rounded-xl text-center transition-all border-3 border-transparent ${
+                  selected === opt
+                    ? "ring-4 ring-white scale-105"
+                    : selected !== null || expired
+                    ? "opacity-50"
+                    : ""
+                }`}
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
+        )}
 
         {selected && (
           <div className="text-center animate-slide-up">
@@ -215,19 +282,25 @@ function PlayerOpenQuestion({
   questionText,
   questionIndex,
   totalQuestions,
+  timeLimit,
+  questionStartedAt,
   onAnswer,
 }: {
   questionText: string;
   questionIndex: number;
   totalQuestions: number;
+  timeLimit?: number | null;
+  questionStartedAt?: string | null;
   onAnswer: (text: string) => void;
 }) {
   const [text, setText] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const remaining = useCountdown(timeLimit, questionStartedAt, !submitted);
+  const expired = remaining === 0;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!text.trim() || submitted) return;
+    if (!text.trim() || submitted || expired) return;
     setSubmitted(true);
     onAnswer(text.trim());
   }
@@ -235,10 +308,13 @@ function PlayerOpenQuestion({
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-sm space-y-4">
-        <div className="text-center">
+        <div className="flex items-center justify-between">
           <span className="text-amber-200 font-bold text-sm">
             Pergunta {questionIndex + 1} / {totalQuestions}
           </span>
+          {remaining !== null && timeLimit && (
+            <CountdownDisplay remaining={remaining} timeLimit={timeLimit} />
+          )}
         </div>
 
         <div className="retro-card p-6">
@@ -247,7 +323,13 @@ function PlayerOpenQuestion({
           </h2>
         </div>
 
-        {!submitted ? (
+        {expired && !submitted ? (
+          <div className="text-center animate-bounce-in">
+            <div className="retro-card p-4 inline-block">
+              <p className="text-red-600 font-bold text-lg">Tempo esgotado!</p>
+            </div>
+          </div>
+        ) : !submitted ? (
           <form onSubmit={handleSubmit} className="space-y-3">
             <input
               type="text"
@@ -298,12 +380,16 @@ function PlayerReveal({
   correctAnswer,
   questionText,
   players,
+  pointsAwarded,
+  basePoints,
 }: {
   player: Player;
   answer: Answer | null;
   correctAnswer?: string;
   questionText: string;
   players: Player[];
+  pointsAwarded?: number | null;
+  basePoints?: number;
 }) {
   const isCorrect = answer?.isCorrect === true;
   const myScore = players.find((p) => p.id === player.id)?.score ?? 0;
@@ -311,6 +397,9 @@ function PlayerReveal({
   const myRank = sorted.findIndex((p) => p.id === player.id) + 1;
   const leader = sorted[0];
   const gapToFirst = leader && leader.id !== player.id ? leader.score - myScore : 0;
+
+  const hasSpeedBonus = isCorrect && pointsAwarded != null && basePoints != null && pointsAwarded > basePoints;
+  const speedBonus = hasSpeedBonus ? pointsAwarded - basePoints : 0;
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4">
@@ -329,6 +418,20 @@ function PlayerReveal({
           >
             {isCorrect ? "Correto!" : answer ? "Errado!" : "Nao respondeste"}
           </h2>
+
+          {isCorrect && pointsAwarded != null && (
+            <div className="mt-2">
+              {hasSpeedBonus ? (
+                <p className="text-green-600 font-bold">
+                  +{basePoints} pt{basePoints !== 1 ? "s" : ""} + {speedBonus} bonus de velocidade
+                </p>
+              ) : (
+                <p className="text-green-600 font-bold">
+                  +{pointsAwarded} pt{pointsAwarded !== 1 ? "s" : ""}
+                </p>
+              )}
+            </div>
+          )}
 
           {correctAnswer && (
             <p className="text-amber-700 font-bold mt-2">
@@ -446,6 +549,7 @@ export default function PlayPage() {
   const code = params.code as string;
   const [player, setPlayer] = useState<Player | null>(null);
   const [restoringSession, setRestoringSession] = useState(true);
+  const [lastPointsAwarded, setLastPointsAwarded] = useState<number | null>(null);
 
   // Always poll room state so we can restore session and track game progress
   const { state, error, loading } = useRoomState(code);
@@ -483,6 +587,13 @@ export default function PlayPage() {
     }
   }, [state, player, code]);
 
+  // Reset points awarded when question changes
+  useEffect(() => {
+    if (state?.room.phase === "question") {
+      setLastPointsAwarded(null);
+    }
+  }, [state?.room.currentQuestionIndex, state?.room.phase]);
+
   function handleJoined(p: Player) {
     localStorage.setItem(`player-${code}`, p.id);
     setPlayer(p);
@@ -493,11 +604,17 @@ export default function PlayPage() {
     const questionId = state.currentQuestion.id;
 
     try {
-      await fetch(`/api/rooms/${code}/answer`, {
+      const res = await fetch(`/api/rooms/${code}/answer`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ playerId: player.id, questionId, answerText }),
       });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.pointsAwarded != null) {
+          setLastPointsAwarded(data.pointsAwarded);
+        }
+      }
     } catch {
       // Answer submission failed — will show as unanswered
     }
@@ -559,6 +676,8 @@ export default function PlayPage() {
           options={currentQuestion.options}
           questionIndex={room.currentQuestionIndex}
           totalQuestions={quiz.questions.length}
+          timeLimit={currentQuestion.timeLimit}
+          questionStartedAt={room.questionStartedAt}
           onAnswer={handleAnswer}
         />
       );
@@ -569,6 +688,8 @@ export default function PlayPage() {
         questionText={currentQuestion.text}
         questionIndex={room.currentQuestionIndex}
         totalQuestions={quiz.questions.length}
+        timeLimit={currentQuestion.timeLimit}
+        questionStartedAt={room.questionStartedAt}
         onAnswer={handleAnswer}
       />
     );
@@ -584,6 +705,8 @@ export default function PlayPage() {
         correctAnswer={currentQuestion.correctAnswer}
         questionText={currentQuestion.text}
         players={players}
+        pointsAwarded={lastPointsAwarded}
+        basePoints={currentQuestion.points}
       />
     );
   }

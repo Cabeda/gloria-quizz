@@ -17,13 +17,14 @@ export async function POST(request: Request) {
       id: quizId,
       title: title.trim(),
       questions: {
-        create: questions.map((q: { text: string; type: string; options?: string[]; correctAnswer?: string; points?: number }, i: number) => ({
+        create: questions.map((q: { text: string; type: string; options?: string[]; correctAnswer?: string; points?: number; timeLimit?: number | null }, i: number) => ({
           id: nanoid(12),
           text: q.text,
           type: q.type,
           options: q.options || [],
           correctAnswer: q.correctAnswer || null,
           points: q.points || 1,
+          timeLimit: q.timeLimit ?? null,
           sortOrder: i,
         })),
       },

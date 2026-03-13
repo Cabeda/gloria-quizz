@@ -13,6 +13,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ cod
       phase: true,
       currentQuestionIndex: true,
       questionOpen: true,
+      questionStartedAt: true,
       createdAt: true,
       updatedAt: true,
       quiz: {
@@ -21,7 +22,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ cod
           title: true,
           questions: {
             orderBy: { sortOrder: "asc" },
-            select: { id: true, text: true, type: true, options: true, correctAnswer: true, points: true, sortOrder: true },
+            select: { id: true, text: true, type: true, options: true, correctAnswer: true, points: true, sortOrder: true, timeLimit: true },
           },
         },
       },
@@ -62,6 +63,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ cod
     room: {
       id: room.id, quizId: room.quizId, phase: room.phase,
       currentQuestionIndex: room.currentQuestionIndex, questionOpen: room.questionOpen,
+      questionStartedAt: room.questionStartedAt,
       createdAt: room.createdAt, updatedAt: room.updatedAt,
     },
     quiz: { id: room.quiz.id, title: room.quiz.title, questions },
@@ -80,7 +82,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ co
   const updateData: Record<string, unknown> = { updatedAt: new Date() };
   if (phase !== undefined) updateData.phase = phase;
   if (currentQuestionIndex !== undefined) updateData.currentQuestionIndex = currentQuestionIndex;
-  if (questionOpen !== undefined) updateData.questionOpen = questionOpen;
+  if (questionOpen !== undefined) {
+    updateData.questionOpen = questionOpen;
+    // Set questionStartedAt when opening a question (for speed bonus calculation)
+    if (questionOpen === true) {
+      updateData.questionStartedAt = new Date();
+    }
+  }
 
   try {
     await prisma.room.update({ where: { id: code }, data: updateData });

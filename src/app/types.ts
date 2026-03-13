@@ -8,6 +8,7 @@ export interface Question {
   correctAnswer?: string;
   points: number;
   sortOrder: number;
+  timeLimit?: number | null;
 }
 
 export interface Quiz {
@@ -49,6 +50,7 @@ export interface Room {
   phase: RoomPhase;
   currentQuestionIndex: number;
   questionOpen: boolean;
+  questionStartedAt?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }
