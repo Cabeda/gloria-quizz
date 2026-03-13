@@ -124,11 +124,13 @@ Gives the host confidence to pace the game — "everyone answered, let's reveal!
 A dramatic 3rd → 2nd → 1st reveal makes the ending feel like an event.
 
 ### Implementation
-- [ ] New `PodiumReveal` component on host finished screen
-- [ ] Animated sequence: 3rd place rises → 2nd place rises → 1st place rises (CSS animations)
-- [ ] Show player emoji, name, score on each podium step
-- [ ] Confetti burst on 1st place reveal
-- [ ] Player finished screen — show their final rank prominently ("Ficaste em 2o lugar!")
+- [x] New `HostFinished` podium component with staggered reveal (3rd at 0.5s, 2nd at 2s, 1st at 3.5s)
+- [x] Animated podium blocks with gradient colors, rising animation (podium-rise CSS)
+- [x] Crown drop animation for 1st place
+- [x] Confetti burst on 1st place reveal (40 pieces)
+- [x] Full leaderboard appears after podium sequence (5s)
+- [x] Graceful fallback: <3 players skips podium, shows leaderboard directly
+- [x] Player finished screen — shows final rank ("Ficaste em Xo lugar!")
 
 ## Feature: Player Rank Between Questions
 Fuels competition by showing players where they stand after each question.
