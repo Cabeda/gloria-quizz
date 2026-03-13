@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useRoomState } from "../../hooks/useRoomState";
+import { useSound } from "../../hooks/useSound";
+import { MuteButton } from "../../components/MuteButton";
 import type { Player, Answer, Question } from "../../types";
 import QRCode from "qrcode";
 
@@ -284,6 +286,7 @@ function QRCodeDisplay({ code }: { code: string }) {
   if (!qrUrl) return null;
   return (
     <div className="flex flex-col items-center gap-2">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={qrUrl} alt="QR Code" className="rounded-xl border-4 border-amber-800" />
       <p className="text-amber-700 text-sm font-bold">
         Ou vai a: <span className="text-amber-900">{window.location.origin}/play/{code}</span>
@@ -293,7 +296,7 @@ function QRCodeDisplay({ code }: { code: string }) {
 }
 
 // --- Lobby ---
-function HostLobby({ code, players, quizId, questions, onEdit }: { code: string; players: Player[]; quizId: string; questions: Question[]; onEdit: () => void }) {
+function HostLobby({ code, players, onEdit }: { code: string; players: Player[]; quizId: string; questions: Question[]; onEdit: () => void }) {
   async function startGame() {
     await patchRoom(code, { phase: "question", questionOpen: true });
   }
@@ -358,23 +361,24 @@ function HostLobby({ code, players, quizId, questions, onEdit }: { code: string;
 // --- Countdown Timer Hook ---
 function useCountdown(timeLimit: number | null | undefined, questionStartedAt: string | null | undefined, active: boolean) {
   const [remaining, setRemaining] = useState<number | null>(null);
+  const isActive = Boolean(timeLimit && questionStartedAt && active);
 
   useEffect(() => {
-    if (!timeLimit || !questionStartedAt || !active) {
-      setRemaining(null);
-      return;
+    if (!isActive) {
+      // Use a 0ms timeout so setState is in a callback, not synchronous in the effect body
+      const t = setTimeout(() => setRemaining(null), 0);
+      return () => clearTimeout(t);
     }
 
     function tick() {
       const elapsed = (Date.now() - new Date(questionStartedAt!).getTime()) / 1000;
-      const left = Math.max(0, timeLimit! - elapsed);
-      setRemaining(Math.ceil(left));
+      setRemaining(Math.ceil(Math.max(0, timeLimit! - elapsed)));
     }
 
     tick();
     const interval = setInterval(tick, 250);
     return () => clearInterval(interval);
-  }, [timeLimit, questionStartedAt, active]);
+  }, [isActive, timeLimit, questionStartedAt]);
 
   return remaining;
 }
@@ -420,6 +424,7 @@ function HostQuestion({
   timeLimit,
   questionStartedAt,
   onEdit,
+  playSound,
 }: {
   code: string;
   questionIndex: number;
@@ -433,8 +438,21 @@ function HostQuestion({
   timeLimit?: number | null;
   questionStartedAt?: string | null;
   onEdit: () => void;
+  playSound: (name: "tick" | "correct" | "wrong" | "reveal" | "fanfare") => void;
 }) {
   const remaining = useCountdown(timeLimit, questionStartedAt, questionOpen);
+  const lastTickRef = useRef<number | null>(null);
+
+  // Play tick sound during last 5 seconds
+  useEffect(() => {
+    if (remaining !== null && remaining > 0 && remaining <= 5 && remaining !== lastTickRef.current) {
+      lastTickRef.current = remaining;
+      playSound("tick");
+    }
+    if (remaining === null || remaining > 5) {
+      lastTickRef.current = null;
+    }
+  }, [remaining, playSound]);
 
   async function closeQuestion() {
     await patchRoom(code, { questionOpen: false });
@@ -718,6 +736,14 @@ function HostFinished({ players }: { players: Player[] }) {
   const sorted = [...players].sort((a, b) => b.score - a.score);
   const medals = ["🥇", "🥈", "🥉"];
   const [revealStep, setRevealStep] = useState(0);
+  // Pre-compute confetti random values to avoid Math.random() during render
+  const [confettiPieces] = useState(() =>
+    Array.from({ length: 40 }, () => ({
+      left: Math.random() * 100,
+      delay: Math.random() * 2,
+      duration: 2 + Math.random() * 2,
+    }))
+  );
   // Step 0 = nothing, 1 = 3rd place, 2 = 2nd place, 3 = 1st place, 4 = full leaderboard
 
   useEffect(() => {
@@ -744,15 +770,15 @@ function HostFinished({ players }: { players: Player[] }) {
     <div className="text-center space-y-6 relative">
       {/* Confetti — triggered when 1st place revealed */}
       {((hasPodium && revealStep >= 3) || (!hasPodium && revealStep >= 1)) &&
-        Array.from({ length: 40 }).map((_, i) => (
+        confettiPieces.map((piece, i) => (
           <div
             key={i}
             className="confetti-piece"
             style={{
-              left: `${Math.random() * 100}%`,
+              left: `${piece.left}%`,
               backgroundColor: ["#e74c3c", "#3498db", "#2ecc71", "#f1c40f", "#9b59b6", "#e67e22"][i % 6],
-              animationDelay: `${Math.random() * 2}s`,
-              animationDuration: `${2 + Math.random() * 2}s`,
+              animationDelay: `${piece.delay}s`,
+              animationDuration: `${piece.duration}s`,
             }}
           />
         ))}
@@ -887,6 +913,7 @@ export default function HostPage() {
   const [editing, setEditing] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const { play, muted, toggleMute } = useSound();
 
   async function resetGame() {
     setResetting(true);
@@ -915,6 +942,7 @@ export default function HostPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4">
+      <MuteButton muted={muted} onToggle={toggleMute} />
       <div className="w-full max-w-4xl">
         {room.phase === "lobby" && <HostLobby code={code} players={players} quizId={quiz.id} questions={quiz.questions} onEdit={() => setEditing(true)} />}
 
@@ -932,6 +960,7 @@ export default function HostPage() {
             timeLimit={currentQuestion.timeLimit}
             questionStartedAt={room.questionStartedAt}
             onEdit={() => setEditing(true)}
+            playSound={play}
           />
         )}
 

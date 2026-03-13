@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useRoomState } from "../../hooks/useRoomState";
 import type { Player, Answer } from "../../types";
@@ -8,23 +8,23 @@ import type { Player, Answer } from "../../types";
 // --- Countdown Timer Hook ---
 function useCountdown(timeLimit: number | null | undefined, questionStartedAt: string | null | undefined, active: boolean) {
   const [remaining, setRemaining] = useState<number | null>(null);
+  const isActive = Boolean(timeLimit && questionStartedAt && active);
 
   useEffect(() => {
-    if (!timeLimit || !questionStartedAt || !active) {
-      setRemaining(null);
-      return;
+    if (!isActive) {
+      const t = setTimeout(() => setRemaining(null), 0);
+      return () => clearTimeout(t);
     }
 
     function tick() {
       const elapsed = (Date.now() - new Date(questionStartedAt!).getTime()) / 1000;
-      const left = Math.max(0, timeLimit! - elapsed);
-      setRemaining(Math.ceil(left));
+      setRemaining(Math.ceil(Math.max(0, timeLimit! - elapsed)));
     }
 
     tick();
     const interval = setInterval(tick, 250);
     return () => clearInterval(interval);
-  }, [timeLimit, questionStartedAt, active]);
+  }, [isActive, timeLimit, questionStartedAt]);
 
   return remaining;
 }
@@ -378,7 +378,6 @@ function PlayerReveal({
   player,
   answer,
   correctAnswer,
-  questionText,
   players,
   pointsAwarded,
   basePoints,
@@ -547,56 +546,56 @@ export default function PlayPage() {
   const params = useParams();
   const router = useRouter();
   const code = params.code as string;
-  const [player, setPlayer] = useState<Player | null>(null);
-  const [restoringSession, setRestoringSession] = useState(true);
+  // Player ID set explicitly on join or restored from localStorage
+  const [playerId, setPlayerId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem(`player-${code}`);
+  });
   const [lastPointsAwarded, setLastPointsAwarded] = useState<number | null>(null);
+  const lastQuestionIndexRef = useRef<number | null>(null);
 
   // Always poll room state so we can restore session and track game progress
   const { state, error, loading } = useRoomState(code);
 
-  // Restore player session from localStorage on mount
-  useEffect(() => {
-    const storageKey = `player-${code}`;
-    const savedPlayerId = localStorage.getItem(storageKey);
-    if (savedPlayerId && state) {
-      const found = state.players.find((p) => p.id === savedPlayerId);
-      if (found) {
-        setPlayer(found);
-      } else {
-        // Player was removed — clear stale session
-        localStorage.removeItem(storageKey);
-      }
-    }
-    if (!loading) {
-      setRestoringSession(false);
-    }
-  }, [code, state, loading]);
-
-  // Keep player score/data in sync with server
-  useEffect(() => {
-    if (!state || !player) return;
-    const serverPlayer = state.players.find((p) => p.id === player.id);
-    if (serverPlayer) {
-      if (serverPlayer.score !== player.score || serverPlayer.name !== player.name) {
-        setPlayer(serverPlayer);
-      }
+  // Derive player from state + playerId (no effect needed)
+  let player: Player | null = null;
+  if (playerId && state) {
+    const found = state.players.find((p) => p.id === playerId);
+    if (found) {
+      player = found;
     } else {
-      // Player was removed from the room
-      setPlayer(null);
-      localStorage.removeItem(`player-${code}`);
+      // Player was removed — clear stale session synchronously during render
+      if (typeof window !== "undefined") {
+        localStorage.removeItem(`player-${code}`);
+      }
     }
-  }, [state, player, code]);
+  }
+
+  // Clear playerId if player was removed
+  const playerWasRemoved = playerId !== null && state !== null && player === null && !loading;
+  useEffect(() => {
+    if (playerWasRemoved) {
+      const t = setTimeout(() => setPlayerId(null), 0);
+      return () => clearTimeout(t);
+    }
+  }, [playerWasRemoved]);
 
   // Reset points awarded when question changes
+  const currentQuestionIndex = state?.room.currentQuestionIndex ?? null;
+  const currentPhase = state?.room.phase ?? null;
   useEffect(() => {
-    if (state?.room.phase === "question") {
-      setLastPointsAwarded(null);
+    if (currentPhase === "question" && currentQuestionIndex !== lastQuestionIndexRef.current) {
+      lastQuestionIndexRef.current = currentQuestionIndex;
+      const t = setTimeout(() => setLastPointsAwarded(null), 0);
+      return () => clearTimeout(t);
     }
-  }, [state?.room.currentQuestionIndex, state?.room.phase]);
+  }, [currentPhase, currentQuestionIndex]);
+
+  const restoringSession = loading;
 
   function handleJoined(p: Player) {
     localStorage.setItem(`player-${code}`, p.id);
-    setPlayer(p);
+    setPlayerId(p.id);
   }
 
   async function handleAnswer(answerText: string) {
