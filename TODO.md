@@ -145,14 +145,14 @@ Fuels competition by showing players where they stand after each question.
 Low effort, high fun — players send quick reactions that appear on the host screen.
 
 ### Backend
-- [ ] `POST /api/rooms/[code]/reactions` — player sends emoji reaction (throttled: 1 per 3s per player)
-- [ ] `GET /api/rooms/[code]/reactions` — recent reactions (last 10s)
-- [ ] Tests for reaction endpoint (throttle, valid emoji, room exists)
+- [x] `POST /api/rooms/[code]/reactions` — player sends emoji reaction (throttled: 1 per 3s per player)
+- [x] `GET /api/rooms/[code]/reactions` — recent reactions (last 10s)
+- [x] Tests for reaction endpoint (throttle, valid emoji, room exists) — 10 tests
 
 ### Frontend
-- [ ] Player: reaction bar during reveal phase (5-6 emoji buttons: 😂🔥😱🎉👏😭)
-- [ ] Host: floating emoji animation overlay — reactions bubble up and fade out
-- [ ] Rate-limit UI: disable buttons for 3s after sending
+- [x] Player: reaction bar during reveal phase (5-6 emoji buttons: 😂🔥😱🎉👏😭)
+- [x] Host: floating emoji animation overlay — reactions bubble up and fade out
+- [x] Rate-limit UI: disable buttons for 3s after sending
 
 ## Feature: Question Reordering
 Drag-to-reorder in the quiz editor helps organizers adjust on the fly.

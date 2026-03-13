@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useRoomState } from "../../hooks/useRoomState";
 import { useSound } from "../../hooks/useSound";
 import { MuteButton } from "../../components/MuteButton";
+import { ReactionOverlay } from "../../components/Reactions";
 import type { Player, Answer, Question } from "../../types";
 import QRCode from "qrcode";
 
@@ -954,6 +955,7 @@ export default function HostPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4">
       <MuteButton muted={muted} onToggle={toggleMute} />
+      <ReactionOverlay code={code} />
       <div className="w-full max-w-4xl">
         {room.phase === "lobby" && <HostLobby code={code} players={players} quizId={quiz.id} questions={quiz.questions} onEdit={() => setEditing(true)} />}
 

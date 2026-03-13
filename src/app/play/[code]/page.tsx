@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useRoomState } from "../../hooks/useRoomState";
 import { useSound } from "../../hooks/useSound";
 import { MuteButton } from "../../components/MuteButton";
+import { ReactionBar } from "../../components/Reactions";
 import type { Player, Answer } from "../../types";
 
 // --- Countdown Timer Hook ---
@@ -729,7 +730,9 @@ export default function PlayPage() {
         players={players}
         pointsAwarded={lastPointsAwarded}
         basePoints={currentQuestion.points}
-      /></>
+      />
+      <ReactionBar code={code} playerId={player.id} />
+      </>
     );
   }
 
