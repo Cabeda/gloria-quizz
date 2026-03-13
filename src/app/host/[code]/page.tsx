@@ -638,12 +638,17 @@ function HostQuestion({
             Fechar Respostas
           </button>
         )}
-        {!questionOpen && questionType === "open-ended" && answers.some((a) => a.isCorrect === null) && (
+        {!questionOpen && questionType === "open-ended" && (answers.length === 0 || answers.some((a) => a.isCorrect === null)) && (
           <p className="text-amber-200 font-bold self-center">
-            Avalia todas as respostas antes de revelar
+            {answers.length === 0 ? "Ninguem respondeu ainda" : "Avalia todas as respostas antes de revelar"}
           </p>
         )}
-        {!questionOpen && (questionType !== "open-ended" || answers.every((a) => a.isCorrect !== null)) && (
+        {!questionOpen && questionType === "open-ended" && answers.length > 0 && answers.every((a) => a.isCorrect !== null) && (
+          <button onClick={showReveal} className="retro-button">
+            Revelar Resultado
+          </button>
+        )}
+        {!questionOpen && questionType !== "open-ended" && (
           <button onClick={showReveal} className="retro-button">
             Revelar Resultado
           </button>
