@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "quizId required" }, { status: 400 });
   }
 
-  const quiz = await prisma.quiz.findUnique({ where: { id: quizId } });
+  const quiz = await prisma.quiz.findUnique({ where: { id: quizId }, select: { id: true } });
   if (!quiz) {
     return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
   }

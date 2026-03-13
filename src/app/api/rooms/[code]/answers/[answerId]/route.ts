@@ -25,19 +25,19 @@ export async function PATCH(
   const wasCorrect = answer.isCorrect;
   const points = answer.question.points || 1;
 
-  await prisma.answer.update({ where: { id: answerId }, data: { isCorrect } });
-
-  // Adjust score
+  // Update answer + adjust score in a single transaction when needed
   if (isCorrect && !wasCorrect) {
-    await prisma.player.update({
-      where: { id: answer.playerId },
-      data: { score: { increment: points } },
-    });
+    await prisma.$transaction([
+      prisma.answer.update({ where: { id: answerId }, data: { isCorrect } }),
+      prisma.player.update({ where: { id: answer.playerId }, data: { score: { increment: points } } }),
+    ]);
   } else if (!isCorrect && wasCorrect) {
-    await prisma.player.update({
-      where: { id: answer.playerId },
-      data: { score: { decrement: points } },
-    });
+    await prisma.$transaction([
+      prisma.answer.update({ where: { id: answerId }, data: { isCorrect } }),
+      prisma.player.update({ where: { id: answer.playerId }, data: { score: { decrement: points } } }),
+    ]);
+  } else {
+    await prisma.answer.update({ where: { id: answerId }, data: { isCorrect } });
   }
 
   return NextResponse.json({ ok: true });

@@ -7,18 +7,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ cod
   const players = await prisma.player.findMany({
     where: { roomId: code },
     orderBy: { joinedAt: "asc" },
+    select: { id: true, roomId: true, name: true, emoji: true, color: true, score: true, isConnected: true, joinedAt: true },
   });
 
-  return NextResponse.json(
-    players.map((p) => ({
-      id: p.id,
-      roomId: p.roomId,
-      name: p.name,
-      emoji: p.emoji,
-      color: p.color,
-      score: p.score,
-      isConnected: p.isConnected,
-      joinedAt: p.joinedAt,
-    }))
-  );
+  return NextResponse.json(players);
 }

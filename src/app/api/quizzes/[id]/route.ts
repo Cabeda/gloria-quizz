@@ -37,18 +37,21 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   const body = await request.json();
   const { title, questions } = body;
 
-  const quiz = await prisma.quiz.findUnique({ where: { id } });
+  const quiz = await prisma.quiz.findUnique({ where: { id }, select: { id: true } });
   if (!quiz) {
     return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
   }
 
+  // Build operations to run in a single transaction
+  const ops = [];
+
   if (title) {
-    await prisma.quiz.update({ where: { id }, data: { title: title.trim() } });
+    ops.push(prisma.quiz.update({ where: { id }, data: { title: title.trim() } }));
   }
 
   if (questions) {
-    await prisma.question.deleteMany({ where: { quizId: id } });
-    await prisma.question.createMany({
+    ops.push(prisma.question.deleteMany({ where: { quizId: id } }));
+    ops.push(prisma.question.createMany({
       data: questions.map((q: { id?: string; text: string; type: string; options?: string[]; correctAnswer?: string; points?: number }, i: number) => ({
         id: q.id || nanoid(12),
         quizId: id,
@@ -59,7 +62,11 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         points: q.points || 1,
         sortOrder: i,
       })),
-    });
+    }));
+  }
+
+  if (ops.length > 0) {
+    await prisma.$transaction(ops);
   }
 
   return NextResponse.json({ ok: true });

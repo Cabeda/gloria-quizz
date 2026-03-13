@@ -4,15 +4,31 @@ import { NextResponse } from "next/server";
 export async function GET(_request: Request, { params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
 
+  // Single query: room + quiz (title only) + questions (needed fields) + players (needed fields)
   const room = await prisma.room.findUnique({
     where: { id: code },
-    include: {
+    select: {
+      id: true,
+      quizId: true,
+      phase: true,
+      currentQuestionIndex: true,
+      questionOpen: true,
+      createdAt: true,
+      updatedAt: true,
       quiz: {
-        include: {
-          questions: { orderBy: { sortOrder: "asc" } },
+        select: {
+          id: true,
+          title: true,
+          questions: {
+            orderBy: { sortOrder: "asc" },
+            select: { id: true, text: true, type: true, options: true, correctAnswer: true, points: true, sortOrder: true },
+          },
         },
       },
-      players: { orderBy: { joinedAt: "asc" } },
+      players: {
+        orderBy: { joinedAt: "asc" },
+        select: { id: true, roomId: true, name: true, emoji: true, color: true, score: true, isConnected: true, joinedAt: true },
+      },
     },
   });
 
@@ -20,65 +36,36 @@ export async function GET(_request: Request, { params }: { params: Promise<{ cod
     return NextResponse.json({ error: "Room not found" }, { status: 404 });
   }
 
-  const questions = room.quiz.questions.map((q) => ({
-    id: q.id,
-    text: q.text,
-    type: q.type,
-    options: q.options,
-    correctAnswer: q.correctAnswer,
-    points: q.points,
-    sortOrder: q.sortOrder,
-  }));
-
+  const questions = room.quiz.questions;
   const currentQuestion = questions[room.currentQuestionIndex ?? 0] || null;
 
-  // Get answers for current question (only if there is one)
+  // Fetch answers for current question only when needed (question/reveal phases)
   let answers: Record<string, unknown>[] = [];
-  if (currentQuestion) {
+  if (currentQuestion && (room.phase === "question" || room.phase === "reveal")) {
     const answerRows = await prisma.answer.findMany({
       where: { roomId: code, questionId: currentQuestion.id },
-      include: { player: true },
       orderBy: { answeredAt: "asc" },
+      select: {
+        id: true, roomId: true, questionId: true, playerId: true,
+        answerText: true, isCorrect: true, answeredAt: true,
+        player: { select: { name: true, emoji: true, color: true } },
+      },
     });
     answers = answerRows.map((a) => ({
-      id: a.id,
-      roomId: a.roomId,
-      questionId: a.questionId,
-      playerId: a.playerId,
-      answerText: a.answerText,
-      isCorrect: a.isCorrect,
-      answeredAt: a.answeredAt,
-      playerName: a.player.name,
-      playerEmoji: a.player.emoji,
-      playerColor: a.player.color,
+      id: a.id, roomId: a.roomId, questionId: a.questionId, playerId: a.playerId,
+      answerText: a.answerText, isCorrect: a.isCorrect, answeredAt: a.answeredAt,
+      playerName: a.player.name, playerEmoji: a.player.emoji, playerColor: a.player.color,
     }));
   }
 
   return NextResponse.json({
     room: {
-      id: room.id,
-      quizId: room.quizId,
-      phase: room.phase,
-      currentQuestionIndex: room.currentQuestionIndex,
-      questionOpen: room.questionOpen,
-      createdAt: room.createdAt,
-      updatedAt: room.updatedAt,
+      id: room.id, quizId: room.quizId, phase: room.phase,
+      currentQuestionIndex: room.currentQuestionIndex, questionOpen: room.questionOpen,
+      createdAt: room.createdAt, updatedAt: room.updatedAt,
     },
-    quiz: {
-      id: room.quiz.id,
-      title: room.quiz.title,
-      questions,
-    },
-    players: room.players.map((p) => ({
-      id: p.id,
-      roomId: p.roomId,
-      name: p.name,
-      emoji: p.emoji,
-      color: p.color,
-      score: p.score,
-      isConnected: p.isConnected,
-      joinedAt: p.joinedAt,
-    })),
+    quiz: { id: room.quiz.id, title: room.quiz.title, questions },
+    players: room.players,
     currentQuestion,
     answers,
   });

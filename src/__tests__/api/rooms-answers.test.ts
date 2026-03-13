@@ -13,9 +13,9 @@ describe("GET /api/rooms/[code]/answers", () => {
   beforeEach(() => {
     resetMocks();
     mockPrisma.room.findUnique.mockResolvedValue({
-      currentQuestionIndex: 0, quizId: "q1",
+      currentQuestionIndex: 0,
+      quiz: { questions: [{ id: "qn1" }] },
     });
-    mockPrisma.question.findMany.mockResolvedValue([{ id: "qn1" }]);
     mockPrisma.answer.findMany.mockResolvedValue([
       {
         id: "a1", roomId: "ABC123", questionId: "qn1", playerId: "p1",
@@ -44,9 +44,9 @@ describe("GET /api/rooms/[code]/answers", () => {
 
   it("returns empty array if no current question", async () => {
     mockPrisma.room.findUnique.mockResolvedValue({
-      currentQuestionIndex: 5, quizId: "q1",
+      currentQuestionIndex: 5,
+      quiz: { questions: [] },
     });
-    mockPrisma.question.findMany.mockResolvedValue([]); // no questions
     const { request, params } = makeRequest("ABC123");
     const res = await GET(request, { params });
     expect(res.status).toBe(200);

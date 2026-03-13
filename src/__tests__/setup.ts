@@ -23,6 +23,7 @@ export const mockPrisma = {
   room: createModelMock(),
   player: createModelMock(),
   answer: createModelMock(),
+  $transaction: vi.fn().mockImplementation((ops: Promise<unknown>[]) => Promise.all(ops)),
 };
 
 vi.mock("@/app/lib/prisma", () => ({
@@ -36,13 +37,14 @@ vi.mock("nanoid", () => ({
 
 /** Reset all mocks between tests */
 export function resetMocks() {
-  for (const model of Object.values(mockPrisma)) {
+  const models = [mockPrisma.quiz, mockPrisma.question, mockPrisma.room, mockPrisma.player, mockPrisma.answer];
+  for (const model of models) {
     for (const fn of Object.values(model)) {
       (fn as ReturnType<typeof vi.fn>).mockReset();
     }
   }
   // Re-apply sensible defaults
-  for (const model of Object.values(mockPrisma)) {
+  for (const model of models) {
     model.findUnique.mockResolvedValue(null);
     model.findFirst.mockResolvedValue(null);
     model.findMany.mockResolvedValue([]);
@@ -54,4 +56,6 @@ export function resetMocks() {
     model.deleteMany.mockResolvedValue({ count: 0 });
     model.count.mockResolvedValue(0);
   }
+  mockPrisma.$transaction.mockReset();
+  mockPrisma.$transaction.mockImplementation((ops: Promise<unknown>[]) => Promise.all(ops));
 }
