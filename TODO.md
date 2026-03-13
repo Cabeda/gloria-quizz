@@ -79,5 +79,5 @@
 
 ## Next Steps
 - [ ] Verify Vercel deployment works end-to-end
-- [ ] Performance optimizations (Prisma select for specific fields, parallel queries)
-- [ ] Fix correctAnswer radio button bug in /create page (patch included in Prisma commit)
+- [x] Performance optimizations (Prisma select, $transaction, skip unnecessary queries)
+- [x] Fix correctAnswer radio button bug in /create and host QuizEditor (store index, not text)
