@@ -158,10 +158,10 @@ Low effort, high fun — players send quick reactions that appear on the host sc
 Drag-to-reorder in the quiz editor helps organizers adjust on the fly.
 
 ### Implementation
-- [ ] Quiz creator (`/create`) — drag handle on each question, reorder via drag-and-drop
-- [ ] Host QuizEditor — same drag-to-reorder
-- [ ] Use HTML5 drag-and-drop API (no extra dependencies)
-- [ ] Update sortOrder on save
+- [x] Quiz creator (`/create`) — drag handle on each question, reorder via drag-and-drop
+- [x] Host QuizEditor — same drag-to-reorder
+- [x] Use HTML5 drag-and-drop API (no extra dependencies)
+- [x] Update sortOrder on save
 
 ## Feature: Answer Streaks
 "3 respostas certas seguidas!" builds momentum and adds a meta-game.

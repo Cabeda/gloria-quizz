@@ -61,6 +61,7 @@ function CreateQuizInner() {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(!!editId);
   const [error, setError] = useState("");
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (!editId) return;
@@ -107,6 +108,15 @@ function CreateQuizInner() {
 
   function addQuestion() {
     setQuestions((prev) => [...prev, emptyQuestion()]);
+  }
+
+  function moveQuestion(from: number, to: number) {
+    setQuestions((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
   }
 
   async function handleSave() {
@@ -218,12 +228,29 @@ function CreateQuizInner() {
           {questions.map((q, qIdx) => (
             <div
               key={qIdx}
-              className="bg-amber-50 border-2 border-amber-300 rounded-xl p-4 animate-slide-up"
+              className={`bg-amber-50 border-2 rounded-xl p-4 animate-slide-up transition-opacity ${
+                dragIndex === qIdx ? "opacity-50 border-amber-500" : "border-amber-300"
+              }`}
+              draggable
+              onDragStart={() => setDragIndex(qIdx)}
+              onDragEnd={() => setDragIndex(null)}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={() => {
+                if (dragIndex !== null && dragIndex !== qIdx) {
+                  moveQuestion(dragIndex, qIdx);
+                }
+                setDragIndex(null);
+              }}
             >
               <div className="flex items-center justify-between mb-3">
-                <span className="font-bold text-amber-800">
-                  Pergunta {qIdx + 1}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="cursor-grab active:cursor-grabbing text-amber-400 hover:text-amber-600 select-none" title="Arrastar para reordenar">
+                    &#x2630;
+                  </span>
+                  <span className="font-bold text-amber-800">
+                    Pergunta {qIdx + 1}
+                  </span>
+                </div>
                 <div className="flex items-center gap-2">
                   <label className="text-xs text-amber-600 font-bold">Pontos:</label>
                   <input

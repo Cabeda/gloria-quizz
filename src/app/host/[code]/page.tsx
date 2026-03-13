@@ -78,6 +78,7 @@ function QuizEditor({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
 
   function updateDraft(idx: number, patch: Partial<DraftQuestion>) {
     setDrafts((prev) => prev.map((q, i) => (i === idx ? { ...q, ...patch } : q)));
@@ -101,6 +102,16 @@ function QuizEditor({
 
   function addDraft() {
     setDrafts((prev) => [...prev, emptyDraft()]);
+    setSaved(false);
+  }
+
+  function moveDraft(from: number, to: number) {
+    setDrafts((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
     setSaved(false);
   }
 
@@ -164,9 +175,29 @@ function QuizEditor({
 
         <div className="space-y-4">
           {drafts.map((q, qIdx) => (
-            <div key={qIdx} className="bg-white border-2 border-amber-300 rounded-xl p-4">
+            <div
+              key={qIdx}
+              className={`bg-white border-2 rounded-xl p-4 transition-opacity ${
+                dragIndex === qIdx ? "opacity-50 border-amber-500" : "border-amber-300"
+              }`}
+              draggable
+              onDragStart={() => setDragIndex(qIdx)}
+              onDragEnd={() => setDragIndex(null)}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={() => {
+                if (dragIndex !== null && dragIndex !== qIdx) {
+                  moveDraft(dragIndex, qIdx);
+                }
+                setDragIndex(null);
+              }}
+            >
               <div className="flex items-center justify-between mb-2">
-                <span className="font-bold text-amber-800 text-sm">Pergunta {qIdx + 1}</span>
+                <div className="flex items-center gap-2">
+                  <span className="cursor-grab active:cursor-grabbing text-amber-400 hover:text-amber-600 select-none" title="Arrastar para reordenar">
+                    &#x2630;
+                  </span>
+                  <span className="font-bold text-amber-800 text-sm">Pergunta {qIdx + 1}</span>
+                </div>
                 <div className="flex items-center gap-2">
                   <label className="text-xs text-amber-600 font-bold">Pts:</label>
                   <input
