@@ -180,11 +180,15 @@ Drag-to-reorder in the quiz editor helps organizers adjust on the fly.
 Save and reuse quizzes — saves organizers time for recurring events.
 
 ### Backend
-- [ ] `GET /api/quizzes` — list all quizzes (paginated, newest first)
-- [ ] Tests for quiz listing endpoint
+- [x] `GET /api/quizzes` — list all quizzes (paginated, newest first)
+- [x] `DELETE /api/quizzes/[id]` — delete quiz with cascade (answers, players, rooms, questions)
+- [x] Tests for quiz listing endpoint (3 tests)
+- [x] Tests for quiz delete endpoint (2 tests)
 
 ### Frontend
-- [ ] Landing page or `/quizzes` — show saved quizzes with title, question count, date
-- [ ] "Usar este quiz" button → creates room directly
-- [ ] "Editar" button → opens quiz in editor
-- [ ] "Apagar" button with confirmation
+- [x] `/quizzes` page — show saved quizzes with title, question count, date
+- [x] "Jogar" button → creates room directly, redirects to host
+- [x] "Editar" button → opens quiz in editor (`/create?edit=ID`)
+- [x] "Apagar" button with confirmation dialog (Sim/Nao)
+- [x] `/create` supports `?edit=ID` — loads existing quiz, uses PUT to save
+- [x] Landing page links to "Os Meus Quizzes"

@@ -2,6 +2,27 @@ import { prisma } from "@/app/lib/prisma";
 import { nanoid } from "nanoid";
 import { NextResponse } from "next/server";
 
+export async function GET() {
+  const quizzes = await prisma.quiz.findMany({
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      title: true,
+      createdAt: true,
+      _count: { select: { questions: true } },
+    },
+  });
+
+  return NextResponse.json(
+    quizzes.map((q) => ({
+      id: q.id,
+      title: q.title,
+      createdAt: q.createdAt,
+      questionCount: q._count.questions,
+    }))
+  );
+}
+
 export async function POST(request: Request) {
   const body = await request.json();
   const { title, questions } = body;

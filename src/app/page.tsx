@@ -44,9 +44,16 @@ export default function Home() {
 
         <button
           onClick={() => router.push("/create")}
-          className="retro-button w-full mb-6"
+          className="retro-button w-full mb-3"
         >
           Criar Quiz
+        </button>
+
+        <button
+          onClick={() => router.push("/quizzes")}
+          className="retro-button retro-button-secondary w-full mb-6"
+        >
+          Os Meus Quizzes
         </button>
 
         <div className="relative mb-6">

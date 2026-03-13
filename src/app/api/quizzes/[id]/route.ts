@@ -33,6 +33,26 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   });
 }
 
+export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+
+  const quiz = await prisma.quiz.findUnique({ where: { id }, select: { id: true } });
+  if (!quiz) {
+    return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
+  }
+
+  // Cascade delete: answers → players → rooms → questions → quiz
+  await prisma.$transaction([
+    prisma.answer.deleteMany({ where: { question: { quizId: id } } }),
+    prisma.player.deleteMany({ where: { room: { quizId: id } } }),
+    prisma.room.deleteMany({ where: { quizId: id } }),
+    prisma.question.deleteMany({ where: { quizId: id } }),
+    prisma.quiz.delete({ where: { id } }),
+  ]);
+
+  return NextResponse.json({ ok: true });
+}
+
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const body = await request.json();

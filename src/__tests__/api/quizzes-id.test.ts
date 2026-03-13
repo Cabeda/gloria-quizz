@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { mockPrisma, resetMocks } from "../setup";
-import { GET, PUT } from "@/app/api/quizzes/[id]/route";
+import { DELETE, GET, PUT } from "@/app/api/quizzes/[id]/route";
 
 function makeGetRequest(id: string) {
   return {
@@ -103,5 +103,35 @@ describe("PUT /api/quizzes/[id]", () => {
     });
     const res = await PUT(request, { params });
     expect(res.status).toBe(200);
+  });
+});
+
+function makeDeleteRequest(id: string) {
+  return {
+    request: new Request(`http://localhost/api/quizzes/${id}`, { method: "DELETE" }),
+    params: Promise.resolve({ id }),
+  };
+}
+
+describe("DELETE /api/quizzes/[id]", () => {
+  beforeEach(() => {
+    resetMocks();
+  });
+
+  it("deletes quiz with cascade (answers, players, rooms, questions)", async () => {
+    mockPrisma.quiz.findUnique.mockResolvedValue({ id: "q1" });
+    const { request, params } = makeDeleteRequest("q1");
+    const res = await DELETE(request, { params });
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.ok).toBe(true);
+    expect(mockPrisma.$transaction).toHaveBeenCalledOnce();
+  });
+
+  it("returns 404 for unknown quiz", async () => {
+    mockPrisma.quiz.findUnique.mockResolvedValue(null);
+    const { request, params } = makeDeleteRequest("nope");
+    const res = await DELETE(request, { params });
+    expect(res.status).toBe(404);
   });
 });

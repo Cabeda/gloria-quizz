@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { Question } from "../types";
 
 interface DraftQuestion {
@@ -22,12 +22,67 @@ const emptyQuestion = (): DraftQuestion => ({
   timeLimit: null,
 });
 
+function questionToDraft(q: Question): DraftQuestion {
+  const options = q.type === "multiple-choice" && q.options?.length
+    ? [...q.options, ...Array(Math.max(0, 4 - q.options.length)).fill("")]
+    : ["", "", "", ""];
+  const correctAnswerIndex = q.correctAnswer && q.options
+    ? q.options.indexOf(q.correctAnswer)
+    : null;
+  return {
+    text: q.text,
+    type: q.type as "open-ended" | "multiple-choice",
+    options,
+    correctAnswerIndex: correctAnswerIndex !== null && correctAnswerIndex !== undefined && correctAnswerIndex >= 0 ? correctAnswerIndex : null,
+    points: q.points || 1,
+    timeLimit: q.timeLimit ?? null,
+  };
+}
+
 export default function CreateQuizPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-amber-700 animate-pulse">A carregar...</p>
+      </div>
+    }>
+      <CreateQuizInner />
+    </Suspense>
+  );
+}
+
+function CreateQuizInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editId = searchParams.get("edit");
+
   const [title, setTitle] = useState("");
   const [questions, setQuestions] = useState<DraftQuestion[]>([emptyQuestion()]);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(!!editId);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!editId) return;
+    async function loadQuiz() {
+      try {
+        const res = await fetch(`/api/quizzes/${editId}`);
+        if (!res.ok) {
+          setError("Quiz nao encontrado");
+          setLoading(false);
+          return;
+        }
+        const data = await res.json();
+        setTitle(data.title);
+        setQuestions(data.questions.map(questionToDraft));
+      } catch {
+        setError("Erro ao carregar quiz");
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadQuiz();
+  }, [editId]);
 
   function updateQuestion(idx: number, patch: Partial<DraftQuestion>) {
     setQuestions((prev) =>
@@ -94,30 +149,45 @@ export default function CreateQuizPage() {
         })),
       };
 
-      const res = await fetch("/api/quizzes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      if (editId) {
+        // Update existing quiz
+        const res = await fetch(`/api/quizzes/${editId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || "Erro ao guardar");
+        }
+        router.push("/quizzes");
+      } else {
+        // Create new quiz + room
+        const res = await fetch("/api/quizzes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
 
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Erro ao guardar");
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || "Erro ao guardar");
+        }
+
+        const { id: quizId } = await res.json();
+
+        // Create room immediately
+        const roomRes = await fetch("/api/rooms", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ quizId }),
+        });
+
+        if (!roomRes.ok) throw new Error("Erro ao criar sala");
+        const { code } = await roomRes.json();
+
+        router.push(`/host/${code}`);
       }
-
-      const { id: quizId } = await res.json();
-
-      // Create room immediately
-      const roomRes = await fetch("/api/rooms", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ quizId }),
-      });
-
-      if (!roomRes.ok) throw new Error("Erro ao criar sala");
-      const { code } = await roomRes.json();
-
-      router.push(`/host/${code}`);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Erro desconhecido");
     } finally {
@@ -129,9 +199,13 @@ export default function CreateQuizPage() {
     <div className="min-h-screen flex flex-col items-center p-4 py-8">
       <div className="retro-card p-6 md:p-8 max-w-2xl w-full animate-bounce-in">
         <h1 className="text-2xl md:text-3xl font-extrabold text-amber-900 mb-6 text-center">
-          Criar Quiz
+          {editId ? "Editar Quiz" : "Criar Quiz"}
         </h1>
 
+        {loading ? (
+          <p className="text-amber-700 text-center animate-pulse py-8">A carregar quiz...</p>
+        ) : (
+        <>
         <input
           type="text"
           value={title}
@@ -269,15 +343,17 @@ export default function CreateQuizPage() {
           disabled={saving}
           className="retro-button retro-button-green w-full mt-4"
         >
-          {saving ? "A guardar..." : "Guardar e Criar Sala"}
+          {saving ? "A guardar..." : editId ? "Guardar Alteracoes" : "Guardar e Criar Sala"}
         </button>
 
         <button
-          onClick={() => router.push("/")}
+          onClick={() => router.push(editId ? "/quizzes" : "/")}
           className="block mx-auto mt-4 text-amber-700 hover:text-amber-900 font-bold text-sm underline"
         >
-          Voltar ao menu
+          {editId ? "Voltar aos quizzes" : "Voltar ao menu"}
         </button>
+        </>
+        )}
       </div>
     </div>
   );
