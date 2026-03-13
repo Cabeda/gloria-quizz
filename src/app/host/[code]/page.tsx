@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useRoomState } from "../../hooks/useRoomState";
-import type { Player, Answer } from "../../types";
+import type { Player, Answer, Question } from "../../types";
 import QRCode from "qrcode";
 
 // --- API helpers ---
@@ -21,6 +21,229 @@ async function markAnswer(code: string, answerId: string, isCorrect: boolean) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ isCorrect }),
   });
+}
+
+// --- Draft question type for editor ---
+interface DraftQuestion {
+  id?: string;
+  text: string;
+  type: "open-ended" | "multiple-choice";
+  options: string[];
+  correctAnswer: string;
+  points: number;
+}
+
+function questionToDraft(q: Question): DraftQuestion {
+  return {
+    id: q.id,
+    text: q.text,
+    type: q.type,
+    options: q.type === "multiple-choice" ? (q.options || ["", "", "", ""]) : ["", "", "", ""],
+    correctAnswer: q.correctAnswer || "",
+    points: q.points,
+  };
+}
+
+const emptyDraft = (): DraftQuestion => ({
+  text: "",
+  type: "multiple-choice",
+  options: ["", "", "", ""],
+  correctAnswer: "",
+  points: 1,
+});
+
+// --- Quiz Editor Panel ---
+function QuizEditor({
+  quizId,
+  questions,
+  onClose,
+}: {
+  quizId: string;
+  questions: Question[];
+  onClose: () => void;
+}) {
+  const [drafts, setDrafts] = useState<DraftQuestion[]>(questions.map(questionToDraft));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [saved, setSaved] = useState(false);
+
+  function updateDraft(idx: number, patch: Partial<DraftQuestion>) {
+    setDrafts((prev) => prev.map((q, i) => (i === idx ? { ...q, ...patch } : q)));
+    setSaved(false);
+  }
+
+  function updateOption(qIdx: number, optIdx: number, value: string) {
+    setDrafts((prev) =>
+      prev.map((q, i) =>
+        i === qIdx ? { ...q, options: q.options.map((o, j) => (j === optIdx ? value : o)) } : q
+      )
+    );
+    setSaved(false);
+  }
+
+  function removeDraft(idx: number) {
+    if (drafts.length <= 1) return;
+    setDrafts((prev) => prev.filter((_, i) => i !== idx));
+    setSaved(false);
+  }
+
+  function addDraft() {
+    setDrafts((prev) => [...prev, emptyDraft()]);
+    setSaved(false);
+  }
+
+  async function handleSave() {
+    setError("");
+    const valid = drafts.every((q) => {
+      if (!q.text.trim()) return false;
+      if (q.type === "multiple-choice") {
+        const filled = q.options.filter((o) => o.trim());
+        if (filled.length < 2) return false;
+        if (!q.correctAnswer.trim()) return false;
+      }
+      return true;
+    });
+
+    if (!valid) {
+      setError("Verifica as perguntas: texto obrigatorio, escolha multipla precisa de 2+ opcoes e resposta correta.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/quizzes/${quizId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          questions: drafts.map((q) => ({
+            id: q.id,
+            text: q.text.trim(),
+            type: q.type,
+            options: q.type === "multiple-choice" ? q.options.filter((o) => o.trim()) : [],
+            correctAnswer: q.type === "multiple-choice" ? q.correctAnswer.trim() : undefined,
+            points: q.points,
+          })),
+        }),
+      });
+      if (!res.ok) throw new Error("Erro ao guardar");
+      setSaved(true);
+    } catch {
+      setError("Erro ao guardar alteracoes");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex justify-end" onClick={onClose}>
+      <div
+        className="bg-amber-50 w-full max-w-lg h-full overflow-y-auto p-6 shadow-2xl animate-slide-up"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-extrabold text-amber-900">Editar Quiz</h2>
+          <button onClick={onClose} className="text-amber-700 hover:text-amber-900 font-bold text-2xl">
+            X
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          {drafts.map((q, qIdx) => (
+            <div key={qIdx} className="bg-white border-2 border-amber-300 rounded-xl p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-bold text-amber-800 text-sm">Pergunta {qIdx + 1}</span>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-amber-600 font-bold">Pts:</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={10}
+                    value={q.points}
+                    onChange={(e) => updateDraft(qIdx, { points: Math.max(1, parseInt(e.target.value) || 1) })}
+                    className="retro-input w-14 text-center text-sm py-1 px-1"
+                  />
+                  {drafts.length > 1 && (
+                    <button onClick={() => removeDraft(qIdx)} className="text-red-500 hover:text-red-700 font-bold text-lg px-1">
+                      X
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <textarea
+                value={q.text}
+                onChange={(e) => updateDraft(qIdx, { text: e.target.value })}
+                placeholder="Escreve a pergunta..."
+                className="retro-input w-full mb-2 resize-none text-sm"
+                rows={2}
+              />
+
+              <div className="flex gap-2 mb-2">
+                <button
+                  onClick={() => updateDraft(qIdx, { type: "multiple-choice" })}
+                  className={`text-xs font-bold px-2 py-1 rounded-lg border-2 transition-colors ${
+                    q.type === "multiple-choice"
+                      ? "bg-amber-600 text-white border-amber-700"
+                      : "bg-white text-amber-700 border-amber-300 hover:bg-amber-100"
+                  }`}
+                >
+                  Escolha Multipla
+                </button>
+                <button
+                  onClick={() => updateDraft(qIdx, { type: "open-ended" })}
+                  className={`text-xs font-bold px-2 py-1 rounded-lg border-2 transition-colors ${
+                    q.type === "open-ended"
+                      ? "bg-amber-600 text-white border-amber-700"
+                      : "bg-white text-amber-700 border-amber-300 hover:bg-amber-100"
+                  }`}
+                >
+                  Resposta Aberta
+                </button>
+              </div>
+
+              {q.type === "multiple-choice" && (
+                <div className="space-y-1">
+                  {q.options.map((opt, optIdx) => (
+                    <div key={optIdx} className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name={`edit-correct-${qIdx}`}
+                        checked={q.correctAnswer !== "" && q.correctAnswer === opt}
+                        onChange={() => updateDraft(qIdx, { correctAnswer: opt })}
+                        className="w-3 h-3 accent-green-600"
+                      />
+                      <input
+                        type="text"
+                        value={opt}
+                        onChange={(e) => updateOption(qIdx, optIdx, e.target.value)}
+                        placeholder={`Opcao ${optIdx + 1}`}
+                        className="retro-input flex-1 text-sm py-1"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <button onClick={addDraft} className="retro-button retro-button-secondary w-full mt-4 text-sm">
+          + Adicionar Pergunta
+        </button>
+
+        {error && <p className="text-red-600 font-bold text-center mt-3 text-sm">{error}</p>}
+        {saved && <p className="text-green-600 font-bold text-center mt-3 text-sm">Guardado!</p>}
+
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="retro-button retro-button-green w-full mt-3"
+        >
+          {saving ? "A guardar..." : "Guardar Alteracoes"}
+        </button>
+      </div>
+    </div>
+  );
 }
 
 // --- QR Code component ---
@@ -44,7 +267,9 @@ function QRCodeDisplay({ code }: { code: string }) {
 }
 
 // --- Lobby ---
-function HostLobby({ code, players }: { code: string; players: Player[] }) {
+function HostLobby({ code, players, quizId, questions }: { code: string; players: Player[]; quizId: string; questions: Question[] }) {
+  const [editing, setEditing] = useState(false);
+
   async function startGame() {
     await patchRoom(code, { phase: "question", questionOpen: true });
   }
@@ -81,11 +306,18 @@ function HostLobby({ code, players }: { code: string; players: Player[] }) {
         )}
       </div>
 
-      {players.length >= 1 && (
-        <button onClick={startGame} className="retro-button retro-button-green text-xl px-12">
-          Comecar!
+      <div className="flex gap-4 justify-center flex-wrap">
+        <button onClick={() => setEditing(true)} className="retro-button retro-button-secondary">
+          Editar Quiz
         </button>
-      )}
+        {players.length >= 1 && (
+          <button onClick={startGame} className="retro-button retro-button-green text-xl px-12">
+            Comecar!
+          </button>
+        )}
+      </div>
+
+      {editing && <QuizEditor quizId={quizId} questions={questions} onClose={() => setEditing(false)} />}
     </div>
   );
 }
@@ -447,7 +679,7 @@ export default function HostPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-4xl">
-        {room.phase === "lobby" && <HostLobby code={code} players={players} />}
+        {room.phase === "lobby" && <HostLobby code={code} players={players} quizId={quiz.id} questions={quiz.questions} />}
 
         {room.phase === "question" && currentQuestion && (
           <HostQuestion
