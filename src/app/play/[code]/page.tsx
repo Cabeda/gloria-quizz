@@ -567,10 +567,11 @@ export default function PlayPage() {
   });
   const [lastPointsAwarded, setLastPointsAwarded] = useState<number | null>(null);
   const lastQuestionIndexRef = useRef<number | null>(null);
+  const [playerSeen, setPlayerSeen] = useState(false);
   const { play, muted, toggleMute } = useSound();
 
   // Always poll room state so we can restore session and track game progress
-  const { state, error, loading } = useRoomState(code);
+  const { state, error, loading, refetch } = useRoomState(code);
 
   // Derive player from state + playerId (no effect needed)
   let player: Player | null = null;
@@ -578,19 +579,31 @@ export default function PlayPage() {
     const found = state.players.find((p) => p.id === playerId);
     if (found) {
       player = found;
-    } else {
-      // Player was removed — clear stale session synchronously during render
+    } else if (playerSeen) {
+      // Player was in the list before but is now gone — removed by host
       if (typeof window !== "undefined") {
         localStorage.removeItem(`player-${code}`);
       }
     }
+    // If !playerSeen, player just joined — poll hasn't refreshed yet, don't clear
   }
 
-  // Clear playerId if player was removed
-  const playerWasRemoved = playerId !== null && state !== null && player === null && !loading;
+  // Track when player first appears in state
+  useEffect(() => {
+    if (player && !playerSeen) {
+      const t = setTimeout(() => setPlayerSeen(true), 0);
+      return () => clearTimeout(t);
+    }
+  }, [player, playerSeen]);
+
+  // Clear playerId if player was removed (only if they were previously seen)
+  const playerWasRemoved = playerId !== null && state !== null && player === null && !loading && playerSeen;
   useEffect(() => {
     if (playerWasRemoved) {
-      const t = setTimeout(() => setPlayerId(null), 0);
+      const t = setTimeout(() => {
+        setPlayerId(null);
+        setPlayerSeen(false);
+      }, 0);
       return () => clearTimeout(t);
     }
   }, [playerWasRemoved]);
@@ -628,6 +641,8 @@ export default function PlayPage() {
   function handleJoined(p: Player) {
     localStorage.setItem(`player-${code}`, p.id);
     setPlayerId(p.id);
+    // Immediately refetch so the player appears without waiting for next poll
+    refetch();
   }
 
   async function handleAnswer(answerText: string) {
