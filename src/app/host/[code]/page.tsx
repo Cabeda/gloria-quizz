@@ -267,9 +267,7 @@ function QRCodeDisplay({ code }: { code: string }) {
 }
 
 // --- Lobby ---
-function HostLobby({ code, players, quizId, questions }: { code: string; players: Player[]; quizId: string; questions: Question[] }) {
-  const [editing, setEditing] = useState(false);
-
+function HostLobby({ code, players, quizId, questions, onEdit }: { code: string; players: Player[]; quizId: string; questions: Question[]; onEdit: () => void }) {
   async function startGame() {
     await patchRoom(code, { phase: "question", questionOpen: true });
   }
@@ -307,7 +305,7 @@ function HostLobby({ code, players, quizId, questions }: { code: string; players
       </div>
 
       <div className="flex gap-4 justify-center flex-wrap">
-        <button onClick={() => setEditing(true)} className="retro-button retro-button-secondary">
+        <button onClick={onEdit} className="retro-button retro-button-secondary">
           Editar Quiz
         </button>
         {players.length >= 1 && (
@@ -316,8 +314,6 @@ function HostLobby({ code, players, quizId, questions }: { code: string; players
           </button>
         )}
       </div>
-
-      {editing && <QuizEditor quizId={quizId} questions={questions} onClose={() => setEditing(false)} />}
     </div>
   );
 }
@@ -333,6 +329,7 @@ function HostQuestion({
   answers,
   players,
   questionOpen,
+  onEdit,
 }: {
   code: string;
   questionIndex: number;
@@ -343,6 +340,7 @@ function HostQuestion({
   answers: Answer[];
   players: Player[];
   questionOpen: boolean;
+  onEdit: () => void;
 }) {
   async function closeQuestion() {
     await patchRoom(code, { questionOpen: false });
@@ -434,6 +432,9 @@ function HostQuestion({
       </div>
 
       <div className="flex gap-4 justify-center">
+        <button onClick={onEdit} className="retro-button retro-button-secondary text-sm">
+          Editar Quiz
+        </button>
         {questionOpen && (
           <button onClick={closeQuestion} className="retro-button retro-button-secondary">
             Fechar Respostas
@@ -458,6 +459,7 @@ function HostReveal({
   correctAnswer,
   answers,
   players,
+  onEdit,
 }: {
   code: string;
   questionIndex: number;
@@ -466,6 +468,7 @@ function HostReveal({
   correctAnswer?: string;
   answers: Answer[];
   players: Player[];
+  onEdit: () => void;
 }) {
   const sorted = [...players].sort((a, b) => b.score - a.score);
   const isLast = questionIndex >= totalQuestions - 1;
@@ -556,7 +559,10 @@ function HostReveal({
         </div>
       </div>
 
-      <div className="text-center">
+      <div className="flex gap-4 justify-center flex-wrap">
+        <button onClick={onEdit} className="retro-button retro-button-secondary text-sm">
+          Editar Quiz
+        </button>
         {isLast ? (
           <button onClick={finishGame} className="retro-button text-xl px-12">
             Ver Resultado Final
@@ -651,6 +657,7 @@ export default function HostPage() {
   const params = useParams();
   const code = params.code as string;
   const { state, error, loading } = useRoomState(code);
+  const [editing, setEditing] = useState(false);
 
   if (loading) {
     return (
@@ -679,7 +686,7 @@ export default function HostPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-4xl">
-        {room.phase === "lobby" && <HostLobby code={code} players={players} quizId={quiz.id} questions={quiz.questions} />}
+        {room.phase === "lobby" && <HostLobby code={code} players={players} quizId={quiz.id} questions={quiz.questions} onEdit={() => setEditing(true)} />}
 
         {room.phase === "question" && currentQuestion && (
           <HostQuestion
@@ -692,6 +699,7 @@ export default function HostPage() {
             answers={answers}
             players={players}
             questionOpen={room.questionOpen}
+            onEdit={() => setEditing(true)}
           />
         )}
 
@@ -704,11 +712,14 @@ export default function HostPage() {
             correctAnswer={currentQuestion.correctAnswer}
             answers={answers}
             players={players}
+            onEdit={() => setEditing(true)}
           />
         )}
 
         {room.phase === "finished" && <HostFinished code={code} players={players} />}
       </div>
+
+      {editing && <QuizEditor quizId={quiz.id} questions={quiz.questions} onClose={() => setEditing(false)} />}
     </div>
   );
 }
