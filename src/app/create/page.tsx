@@ -8,7 +8,7 @@ interface DraftQuestion {
   text: string;
   type: "open-ended" | "multiple-choice";
   options: string[];
-  correctAnswer: string;
+  correctAnswerIndex: number | null;
   points: number;
 }
 
@@ -16,7 +16,7 @@ const emptyQuestion = (): DraftQuestion => ({
   text: "",
   type: "multiple-choice",
   options: ["", "", "", ""],
-  correctAnswer: "",
+  correctAnswerIndex: null,
   points: 1,
 });
 
@@ -64,7 +64,7 @@ export default function CreateQuizPage() {
       if (q.type === "multiple-choice") {
         const filled = q.options.filter((o) => o.trim());
         if (filled.length < 2) return false;
-        if (!q.correctAnswer.trim()) return false;
+        if (q.correctAnswerIndex === null || !q.options[q.correctAnswerIndex]?.trim()) return false;
       }
       return true;
     });
@@ -84,7 +84,9 @@ export default function CreateQuizPage() {
           text: q.text.trim(),
           type: q.type,
           options: q.type === "multiple-choice" ? q.options.filter((o) => o.trim()) : [],
-          correctAnswer: q.type === "multiple-choice" ? q.correctAnswer.trim() : undefined,
+          correctAnswer: q.type === "multiple-choice" && q.correctAnswerIndex !== null
+            ? q.options[q.correctAnswerIndex]?.trim()
+            : undefined,
           points: q.points,
         })),
       };
@@ -155,7 +157,7 @@ export default function CreateQuizPage() {
                     onChange={(e) =>
                       updateQuestion(qIdx, { points: Math.max(1, parseInt(e.target.value) || 1) })
                     }
-                    className="retro-input w-16 text-center text-sm py-1 px-2"
+                    className="retro-input w-20 text-center text-sm py-1 px-2"
                   />
                   {questions.length > 1 && (
                     <button
@@ -206,8 +208,8 @@ export default function CreateQuizPage() {
                       <input
                         type="radio"
                         name={`correct-${qIdx}`}
-                        checked={q.correctAnswer !== "" && q.correctAnswer === opt}
-                        onChange={() => updateQuestion(qIdx, { correctAnswer: opt })}
+                        checked={q.correctAnswerIndex === optIdx}
+                        onChange={() => updateQuestion(qIdx, { correctAnswerIndex: optIdx })}
                         className="w-4 h-4 accent-green-600"
                       />
                       <input
