@@ -43,7 +43,7 @@
 
 ## Testing & CI
 - [x] Vitest config with v8 coverage (90% thresholds)
-- [x] Unit tests for all API routes (52 tests, 9 files)
+- [x] Unit tests for all API routes (57 tests, 11 files)
 - [x] GitHub Actions CI workflow (test + lint)
 - [x] Coverage: 99.32% statements, 93.87% branches, 95% functions, 100% lines
 
@@ -70,7 +70,14 @@
 - [x] Delete old src/app/lib/db.ts (raw SQL helper)
 - [x] Commit and push Prisma migration
 
+## Game Features (Post-Prisma)
+- [x] Quiz reset — organizer can restart game from any phase
+- [x] Mid-game quiz editor — inline editor on host screen (lobby, question, reveal)
+- [x] Host can remove players from lobby
+- [x] Player session persistence via localStorage (survives page refresh)
+- [x] Graceful handling of player removal (clears localStorage, shows join screen)
+
 ## Next Steps
-- [ ] Verify Vercel deployment works (prisma generate in build should fix 500 errors)
+- [ ] Verify Vercel deployment works end-to-end
 - [ ] Performance optimizations (Prisma select for specific fields, parallel queries)
 - [ ] Fix correctAnswer radio button bug in /create page (patch included in Prisma commit)

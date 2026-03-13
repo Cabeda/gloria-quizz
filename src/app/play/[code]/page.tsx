@@ -432,27 +432,52 @@ export default function PlayPage() {
   const params = useParams();
   const code = params.code as string;
   const [player, setPlayer] = useState<Player | null>(null);
-  const [answeredQuestions, setAnsweredQuestions] = useState<Set<string>>(new Set());
+  const [restoringSession, setRestoringSession] = useState(true);
 
-  const { state, error, loading } = useRoomState(player ? code : null);
+  // Always poll room state so we can restore session and track game progress
+  const { state, error, loading } = useRoomState(code);
 
-  // Also poll when not joined to check if room exists
-  const { error: roomCheckError } = useRoomState(!player ? code : null, 5000);
+  // Restore player session from localStorage on mount
+  useEffect(() => {
+    const storageKey = `player-${code}`;
+    const savedPlayerId = localStorage.getItem(storageKey);
+    if (savedPlayerId && state) {
+      const found = state.players.find((p) => p.id === savedPlayerId);
+      if (found) {
+        setPlayer(found);
+      } else {
+        // Player was removed — clear stale session
+        localStorage.removeItem(storageKey);
+      }
+    }
+    if (!loading) {
+      setRestoringSession(false);
+    }
+  }, [code, state, loading]);
 
-  // Keep player score in sync with server
+  // Keep player score/data in sync with server
   useEffect(() => {
     if (!state || !player) return;
     const serverPlayer = state.players.find((p) => p.id === player.id);
-    if (serverPlayer && serverPlayer.score !== player.score) {
-      setPlayer((prev) => (prev ? { ...prev, score: serverPlayer.score } : prev));
+    if (serverPlayer) {
+      if (serverPlayer.score !== player.score || serverPlayer.name !== player.name) {
+        setPlayer(serverPlayer);
+      }
+    } else {
+      // Player was removed from the room
+      setPlayer(null);
+      localStorage.removeItem(`player-${code}`);
     }
-  }, [state, player]);
+  }, [state, player, code]);
+
+  function handleJoined(p: Player) {
+    localStorage.setItem(`player-${code}`, p.id);
+    setPlayer(p);
+  }
 
   async function handleAnswer(answerText: string) {
     if (!state?.currentQuestion || !player) return;
     const questionId = state.currentQuestion.id;
-
-    setAnsweredQuestions((prev) => new Set(prev).add(questionId));
 
     try {
       await fetch(`/api/rooms/${code}/answer`, {
@@ -461,23 +486,12 @@ export default function PlayPage() {
         body: JSON.stringify({ playerId: player.id, questionId, answerText }),
       });
     } catch {
-      // Answer was recorded locally even if network fails
+      // Answer submission failed — will show as unanswered
     }
   }
 
-  // Not joined yet — show join screen
-  if (!player) {
-    return (
-      <JoinScreen
-        code={code}
-        onJoined={setPlayer}
-        error={roomCheckError}
-      />
-    );
-  }
-
-  // Joined but still loading room state
-  if (loading || !state) {
+  // Still restoring session or loading room
+  if (restoringSession || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="retro-card p-8 text-center animate-bounce-in">
@@ -488,12 +502,23 @@ export default function PlayPage() {
     );
   }
 
-  if (error) {
+  // Not joined yet — show join screen
+  if (!player) {
+    return (
+      <JoinScreen
+        code={code}
+        onJoined={handleJoined}
+        error={error}
+      />
+    );
+  }
+
+  if (error || !state) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="retro-card p-8 text-center">
           <div className="text-4xl mb-3">😕</div>
-          <p className="text-red-600 font-bold">{error}</p>
+          <p className="text-red-600 font-bold">{error || "Sala nao encontrada"}</p>
         </div>
       </div>
     );
@@ -513,7 +538,8 @@ export default function PlayPage() {
 
   // Question phase
   if (room.phase === "question" && currentQuestion) {
-    const alreadyAnswered = answeredQuestions.has(currentQuestion.id);
+    // Check server answers to see if player already answered this question
+    const alreadyAnswered = answers.some((a) => a.playerId === player.id);
 
     if (alreadyAnswered || !room.questionOpen) {
       return <PlayerWaiting />;
