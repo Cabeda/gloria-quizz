@@ -371,6 +371,17 @@ function HostQuestion({
 
   const answeredCount = answers.length;
   const totalPlayers = players.length;
+  const allAnswered = totalPlayers > 0 && answeredCount >= totalPlayers;
+
+  // Auto-reveal when all players answered
+  useEffect(() => {
+    if (allAnswered && questionOpen) {
+      const timer = setTimeout(() => {
+        patchRoom(code, { phase: "reveal", questionOpen: false });
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [allAnswered, questionOpen, code]);
 
   return (
     <div className="space-y-6">
@@ -382,6 +393,25 @@ function HostQuestion({
           {answeredCount} / {totalPlayers} responderam
         </span>
       </div>
+
+      {/* Answer progress bar */}
+      <div className="w-full bg-amber-900/30 rounded-full h-3 overflow-hidden">
+        <div
+          className="h-full rounded-full transition-all duration-500 ease-out"
+          style={{
+            width: totalPlayers > 0 ? `${(answeredCount / totalPlayers) * 100}%` : "0%",
+            backgroundColor: allAnswered ? "#22c55e" : "#f59e0b",
+          }}
+        />
+      </div>
+
+      {allAnswered && questionOpen && (
+        <div className="text-center animate-bounce-in">
+          <span className="bg-green-500 text-white font-bold px-6 py-2 rounded-full text-lg">
+            Todos responderam!
+          </span>
+        </div>
+      )}
 
       <div className="retro-card p-8">
         <h2 className="text-2xl md:text-3xl font-extrabold text-amber-900 text-center mb-6">

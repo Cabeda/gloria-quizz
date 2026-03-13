@@ -309,6 +309,8 @@ function PlayerReveal({
   const myScore = players.find((p) => p.id === player.id)?.score ?? 0;
   const sorted = [...players].sort((a, b) => b.score - a.score);
   const myRank = sorted.findIndex((p) => p.id === player.id) + 1;
+  const leader = sorted[0];
+  const gapToFirst = leader && leader.id !== player.id ? leader.score - myScore : 0;
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4">
@@ -344,9 +346,19 @@ function PlayerReveal({
             <div className="w-px h-10 bg-amber-300" />
             <div>
               <p className="text-amber-600 text-sm font-bold">Posicao</p>
-              <p className="text-2xl font-extrabold text-amber-900">{myRank}o</p>
+              <p className="text-2xl font-extrabold text-amber-900">
+                {myRank === 1 ? "🥇" : myRank === 2 ? "🥈" : myRank === 3 ? "🥉" : `${myRank}o`}
+              </p>
             </div>
           </div>
+          {gapToFirst > 0 && (
+            <p className="text-amber-500 text-xs font-bold mt-2">
+              {gapToFirst} pt{gapToFirst !== 1 ? "s" : ""} atras do 1o lugar
+            </p>
+          )}
+          {myRank === 1 && players.length > 1 && (
+            <p className="text-green-600 text-xs font-bold mt-2">Estas na lideranca!</p>
+          )}
         </div>
 
         {/* Mini leaderboard */}
