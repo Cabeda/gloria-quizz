@@ -589,16 +589,9 @@ function HostReveal({
 }
 
 // --- Finished View ---
-function HostFinished({ code, players }: { code: string; players: Player[] }) {
+function HostFinished({ players }: { players: Player[] }) {
   const sorted = [...players].sort((a, b) => b.score - a.score);
   const medals = ["🥇", "🥈", "🥉"];
-  const [resetting, setResetting] = useState(false);
-
-  async function resetGame() {
-    setResetting(true);
-    await fetch(`/api/rooms/${code}/reset`, { method: "POST" });
-    setResetting(false);
-  }
 
   return (
     <div className="text-center space-y-6">
@@ -651,14 +644,6 @@ function HostFinished({ code, players }: { code: string; players: Player[] }) {
           ))}
         </div>
       </div>
-
-      <button
-        onClick={resetGame}
-        disabled={resetting}
-        className="retro-button retro-button-green text-xl px-12"
-      >
-        {resetting ? "A reiniciar..." : "Jogar Outra Vez"}
-      </button>
     </div>
   );
 }
@@ -669,6 +654,15 @@ export default function HostPage() {
   const code = params.code as string;
   const { state, error, loading } = useRoomState(code);
   const [editing, setEditing] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [resetting, setResetting] = useState(false);
+
+  async function resetGame() {
+    setResetting(true);
+    await fetch(`/api/rooms/${code}/reset`, { method: "POST" });
+    setResetting(false);
+    setConfirmReset(false);
+  }
 
   if (loading) {
     return (
@@ -727,10 +721,51 @@ export default function HostPage() {
           />
         )}
 
-        {room.phase === "finished" && <HostFinished code={code} players={players} />}
+        {room.phase === "finished" && <HostFinished players={players} />}
+
+        {/* Reset button — available in all phases except lobby */}
+        {room.phase !== "lobby" && (
+          <div className="text-center mt-6">
+            <button
+              onClick={() => setConfirmReset(true)}
+              className="text-red-400 hover:text-red-600 font-bold text-sm underline"
+            >
+              Reiniciar Jogo
+            </button>
+          </div>
+        )}
       </div>
 
       {editing && <QuizEditor quizId={quiz.id} questions={quiz.questions} onClose={() => setEditing(false)} />}
+
+      {/* Reset confirmation dialog */}
+      {confirmReset && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" onClick={() => setConfirmReset(false)}>
+          <div className="retro-card p-8 max-w-sm text-center animate-bounce-in" onClick={(e) => e.stopPropagation()}>
+            <p className="text-amber-900 font-bold text-lg mb-4">
+              Tens a certeza que queres reiniciar o jogo?
+            </p>
+            <p className="text-amber-600 text-sm mb-6">
+              As pontuacoes e respostas serao apagadas.
+            </p>
+            <div className="flex gap-4 justify-center">
+              <button
+                onClick={() => setConfirmReset(false)}
+                className="retro-button retro-button-secondary"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={resetGame}
+                disabled={resetting}
+                className="retro-button bg-red-500 hover:bg-red-600 text-white border-red-700"
+              >
+                {resetting ? "A reiniciar..." : "Sim, Reiniciar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
