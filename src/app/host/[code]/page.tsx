@@ -713,62 +713,167 @@ function HostReveal({
   );
 }
 
-// --- Finished View ---
+// --- Finished View with Podium ---
 function HostFinished({ players }: { players: Player[] }) {
   const sorted = [...players].sort((a, b) => b.score - a.score);
   const medals = ["🥇", "🥈", "🥉"];
+  const [revealStep, setRevealStep] = useState(0);
+  // Step 0 = nothing, 1 = 3rd place, 2 = 2nd place, 3 = 1st place, 4 = full leaderboard
+
+  useEffect(() => {
+    const hasThree = sorted.length >= 3;
+    const delays = hasThree ? [500, 2000, 3500, 5000] : [500, 1500];
+    const timers = delays.map((delay, i) =>
+      setTimeout(() => setRevealStep(i + 1), delay)
+    );
+    return () => timers.forEach(clearTimeout);
+  }, [sorted.length]);
+
+  const first = sorted[0];
+  const second = sorted[1];
+  const third = sorted[2];
+  const hasPodium = sorted.length >= 3;
+
+  const podiumColors = {
+    first: "from-yellow-300 to-yellow-500",
+    second: "from-gray-300 to-gray-400",
+    third: "from-orange-300 to-orange-500",
+  };
 
   return (
-    <div className="text-center space-y-6">
-      <div className="text-6xl animate-bounce-in">🏆</div>
-      <h1 className="text-4xl font-extrabold text-amber-900">Fim do Jogo!</h1>
+    <div className="text-center space-y-6 relative">
+      {/* Confetti — triggered when 1st place revealed */}
+      {((hasPodium && revealStep >= 3) || (!hasPodium && revealStep >= 1)) &&
+        Array.from({ length: 40 }).map((_, i) => (
+          <div
+            key={i}
+            className="confetti-piece"
+            style={{
+              left: `${Math.random() * 100}%`,
+              backgroundColor: ["#e74c3c", "#3498db", "#2ecc71", "#f1c40f", "#9b59b6", "#e67e22"][i % 6],
+              animationDelay: `${Math.random() * 2}s`,
+              animationDuration: `${2 + Math.random() * 2}s`,
+            }}
+          />
+        ))}
 
-      {/* Confetti */}
-      {Array.from({ length: 30 }).map((_, i) => (
-        <div
-          key={i}
-          className="confetti-piece"
-          style={{
-            left: `${Math.random() * 100}%`,
-            backgroundColor: ["#e74c3c", "#3498db", "#2ecc71", "#f1c40f", "#9b59b6"][i % 5],
-            animationDelay: `${Math.random() * 2}s`,
-            animationDuration: `${2 + Math.random() * 2}s`,
-          }}
-        />
-      ))}
+      <h1 className="text-4xl font-extrabold text-amber-900 animate-bounce-in">Fim do Jogo!</h1>
 
-      <div className="retro-card p-8 max-w-lg mx-auto">
-        <h2 className="text-2xl font-bold text-amber-800 mb-6">Classificacao Final</h2>
-        <div className="space-y-3">
-          {sorted.map((p, i) => (
-            <div
-              key={p.id}
-              className={`flex items-center justify-between p-4 rounded-xl animate-slide-up ${
-                i === 0
-                  ? "bg-yellow-100 border-3 border-yellow-400 scale-105"
-                  : i === 1
-                  ? "bg-gray-100 border-2 border-gray-300"
-                  : i === 2
-                  ? "bg-orange-50 border-2 border-orange-300"
-                  : "bg-amber-50"
-              }`}
-              style={{ animationDelay: `${i * 0.15}s` }}
-            >
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">{medals[i] || `${i + 1}.`}</span>
-                <span
-                  className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-lg"
-                  style={{ backgroundColor: p.color }}
+      {/* Podium (only if 3+ players) */}
+      {hasPodium && (
+        <div className="flex items-end justify-center gap-4 mt-8 mb-6" style={{ minHeight: 280 }}>
+          {/* 2nd Place */}
+          <div className="flex flex-col items-center" style={{ opacity: revealStep >= 2 ? 1 : 0 }}>
+            {revealStep >= 2 && (
+              <>
+                <div style={{ animation: "podium-name 0.5s ease-out forwards" }}>
+                  <span
+                    className="w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-2xl border-4 border-white mx-auto mb-2"
+                    style={{ backgroundColor: second?.color }}
+                  >
+                    {second?.emoji}
+                  </span>
+                  <p className="font-extrabold text-amber-900 text-lg">{second?.name}</p>
+                  <p className="font-bold text-amber-700">{second?.score} pts</p>
+                </div>
+                <div
+                  className={`w-28 bg-gradient-to-t ${podiumColors.second} rounded-t-xl border-3 border-amber-800 mt-2 flex items-center justify-center`}
+                  style={{ height: 120, transformOrigin: "bottom", animation: "podium-rise 0.6s ease-out forwards" }}
                 >
-                  {p.emoji}
-                </span>
-                <span className="font-extrabold text-amber-900 text-lg">{p.name}</span>
-              </div>
-              <span className="font-extrabold text-amber-800 text-xl">{p.score} pts</span>
-            </div>
-          ))}
+                  <span className="text-4xl">🥈</span>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* 1st Place */}
+          <div className="flex flex-col items-center" style={{ opacity: revealStep >= 3 ? 1 : 0 }}>
+            {revealStep >= 3 && (
+              <>
+                <div style={{ animation: "crown-drop 0.6s ease-out forwards" }}>
+                  <span className="text-4xl">👑</span>
+                </div>
+                <div style={{ animation: "podium-name 0.5s ease-out 0.3s both" }}>
+                  <span
+                    className="w-16 h-16 rounded-full flex items-center justify-center text-white font-bold text-3xl border-4 border-yellow-400 mx-auto mb-2"
+                    style={{ backgroundColor: first?.color }}
+                  >
+                    {first?.emoji}
+                  </span>
+                  <p className="font-extrabold text-amber-900 text-xl">{first?.name}</p>
+                  <p className="font-bold text-amber-700 text-lg">{first?.score} pts</p>
+                </div>
+                <div
+                  className={`w-32 bg-gradient-to-t ${podiumColors.first} rounded-t-xl border-3 border-amber-800 mt-2 flex items-center justify-center`}
+                  style={{ height: 160, transformOrigin: "bottom", animation: "podium-rise 0.8s ease-out forwards" }}
+                >
+                  <span className="text-5xl">🥇</span>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* 3rd Place */}
+          <div className="flex flex-col items-center" style={{ opacity: revealStep >= 1 ? 1 : 0 }}>
+            {revealStep >= 1 && (
+              <>
+                <div style={{ animation: "podium-name 0.5s ease-out forwards" }}>
+                  <span
+                    className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-xl border-4 border-white mx-auto mb-2"
+                    style={{ backgroundColor: third?.color }}
+                  >
+                    {third?.emoji}
+                  </span>
+                  <p className="font-extrabold text-amber-900">{third?.name}</p>
+                  <p className="font-bold text-amber-700 text-sm">{third?.score} pts</p>
+                </div>
+                <div
+                  className={`w-24 bg-gradient-to-t ${podiumColors.third} rounded-t-xl border-3 border-amber-800 mt-2 flex items-center justify-center`}
+                  style={{ height: 80, transformOrigin: "bottom", animation: "podium-rise 0.5s ease-out forwards" }}
+                >
+                  <span className="text-3xl">🥉</span>
+                </div>
+              </>
+            )}
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Full leaderboard — shown after podium reveal or immediately if < 3 players */}
+      {((hasPodium && revealStep >= 4) || (!hasPodium && revealStep >= 1)) && (
+        <div className="retro-card p-8 max-w-lg mx-auto animate-slide-up">
+          <h2 className="text-2xl font-bold text-amber-800 mb-6">Classificacao Final</h2>
+          <div className="space-y-3">
+            {sorted.map((p, i) => (
+              <div
+                key={p.id}
+                className={`flex items-center justify-between p-4 rounded-xl animate-slide-up ${
+                  i === 0
+                    ? "bg-yellow-100 border-3 border-yellow-400 scale-105"
+                    : i === 1
+                    ? "bg-gray-100 border-2 border-gray-300"
+                    : i === 2
+                    ? "bg-orange-50 border-2 border-orange-300"
+                    : "bg-amber-50"
+                }`}
+                style={{ animationDelay: `${i * 0.15}s` }}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">{medals[i] || `${i + 1}.`}</span>
+                  <span
+                    className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-lg"
+                    style={{ backgroundColor: p.color }}
+                  >
+                    {p.emoji}
+                  </span>
+                  <span className="font-extrabold text-amber-900 text-lg">{p.name}</span>
+                </div>
+                <span className="font-extrabold text-amber-800 text-xl">{p.score} pts</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
