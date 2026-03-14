@@ -55,8 +55,18 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const body = await request.json();
-  const { title, questions } = body;
+
+  let body: Record<string, unknown>;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  const { title, questions } = body as {
+    title?: string;
+    questions?: { id?: string; text: string; type: string; options?: string[]; correctAnswer?: string; points?: number; timeLimit?: number | null }[];
+  };
 
   const quiz = await prisma.quiz.findUnique({ where: { id }, select: { id: true } });
   if (!quiz) {
@@ -73,7 +83,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   if (questions) {
     ops.push(prisma.question.deleteMany({ where: { quizId: id } }));
     ops.push(prisma.question.createMany({
-      data: questions.map((q: { id?: string; text: string; type: string; options?: string[]; correctAnswer?: string; points?: number; timeLimit?: number | null }, i: number) => ({
+      data: questions.map((q, i: number) => ({
         id: q.id || nanoid(12),
         quizId: id,
         text: q.text,
@@ -87,8 +97,12 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     }));
   }
 
-  if (ops.length > 0) {
-    await prisma.$transaction(ops);
+  try {
+    if (ops.length > 0) {
+      await prisma.$transaction(ops);
+    }
+  } catch {
+    return NextResponse.json({ error: "Failed to update quiz" }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true });
