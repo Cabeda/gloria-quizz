@@ -6,7 +6,8 @@ import { useRoomState } from "../../hooks/useRoomState";
 import { useSound } from "../../hooks/useSound";
 import { MuteButton } from "../../components/MuteButton";
 import { ReactionOverlay } from "../../components/Reactions";
-import type { Player, Answer, Question } from "../../types";
+import type { Player, Answer, Question, RankedPlayer } from "../../types";
+import { rankPlayers, rankLabel } from "../../types";
 import QRCode from "qrcode";
 
 // --- API helpers ---
@@ -679,7 +680,6 @@ function HostReveal({
   players: Player[];
   onEdit: () => void;
 }) {
-  const sorted = [...players].sort((a, b) => b.score - a.score);
   const isLast = questionIndex >= totalQuestions - 1;
 
   async function nextQuestion() {
@@ -749,15 +749,15 @@ function HostReveal({
       <div className="retro-card p-6 max-w-lg mx-auto">
         <h3 className="text-xl font-bold text-amber-800 mb-4 text-center">Classificacao</h3>
         <div className="space-y-2">
-          {sorted.map((p, i) => (
+          {rankPlayers(players).map((p) => (
             <div
               key={p.id}
               className={`flex items-center justify-between p-3 rounded-lg ${
-                i === 0 ? "bg-yellow-100 border-2 border-yellow-400" : "bg-amber-50"
+                p.rank === 1 ? "bg-yellow-100 border-2 border-yellow-400" : "bg-amber-50"
               }`}
             >
               <div className="flex items-center gap-3">
-                <span className="font-extrabold text-amber-800 w-6">{i + 1}.</span>
+                <span className="font-extrabold text-amber-800 w-6">{p.rank}.</span>
                 <span
                   className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold"
                   style={{ backgroundColor: p.color }}
@@ -795,10 +795,32 @@ function HostReveal({
   );
 }
 
+// --- Podium Avatar Group ---
+function PodiumAvatars({ group, size }: { group: RankedPlayer[]; size: "lg" | "md" | "sm" }) {
+  const sizeClasses = { lg: "w-16 h-16 text-3xl", md: "w-14 h-14 text-2xl", sm: "w-12 h-12 text-xl" };
+  const borderClass = size === "lg" ? "border-yellow-400" : "border-white";
+  const nameClass = size === "lg" ? "text-xl" : size === "md" ? "text-lg" : "text-base";
+  return (
+    <div className="flex flex-wrap gap-3 justify-center">
+      {group.map((p) => (
+        <div key={p.id} className="flex flex-col items-center">
+          <span
+            className={`${sizeClasses[size]} rounded-full flex items-center justify-center text-white font-bold border-4 ${borderClass} mx-auto mb-2`}
+            style={{ backgroundColor: p.color }}
+          >
+            {p.emoji}
+          </span>
+          <p className={`font-extrabold text-amber-900 ${nameClass}`}>{p.name}</p>
+          <p className="font-bold text-amber-700 text-sm">{p.score} pts</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // --- Finished View with Podium ---
 function HostFinished({ players }: { players: Player[] }) {
-  const sorted = [...players].sort((a, b) => b.score - a.score);
-  const medals = ["🥇", "🥈", "🥉"];
+  const ranked = rankPlayers(players);
   const [revealStep, setRevealStep] = useState(0);
   // Pre-compute confetti random values to avoid Math.random() during render
   const [confettiPieces] = useState(() =>
@@ -808,21 +830,21 @@ function HostFinished({ players }: { players: Player[] }) {
       duration: 2 + Math.random() * 2,
     }))
   );
-  // Step 0 = nothing, 1 = 3rd place, 2 = 2nd place, 3 = 1st place, 4 = full leaderboard
 
+  // Group players by rank for podium
+  const firstPlace = ranked.filter((p) => p.rank === 1);
+  const secondPlace = ranked.filter((p) => p.rank === 2);
+  const thirdPlace = ranked.filter((p) => p.rank === 3);
+  const hasDistinctPodiumPositions = firstPlace.length > 0 && secondPlace.length > 0 && thirdPlace.length > 0;
+
+  // Step 0 = nothing, 1 = 3rd place, 2 = 2nd place, 3 = 1st place, 4 = full leaderboard
   useEffect(() => {
-    const hasThree = sorted.length >= 3;
-    const delays = hasThree ? [500, 2000, 3500, 5000] : [500, 1500];
+    const delays = hasDistinctPodiumPositions ? [500, 2000, 3500, 5000] : [500, 1500];
     const timers = delays.map((delay, i) =>
       setTimeout(() => setRevealStep(i + 1), delay)
     );
     return () => timers.forEach(clearTimeout);
-  }, [sorted.length]);
-
-  const first = sorted[0];
-  const second = sorted[1];
-  const third = sorted[2];
-  const hasPodium = sorted.length >= 3;
+  }, [hasDistinctPodiumPositions]);
 
   const podiumColors = {
     first: "from-yellow-300 to-yellow-500",
@@ -833,7 +855,7 @@ function HostFinished({ players }: { players: Player[] }) {
   return (
     <div className="text-center space-y-6 relative">
       {/* Confetti — triggered when 1st place revealed */}
-      {((hasPodium && revealStep >= 3) || (!hasPodium && revealStep >= 1)) &&
+      {((hasDistinctPodiumPositions && revealStep >= 3) || (!hasDistinctPodiumPositions && revealStep >= 1)) &&
         confettiPieces.map((piece, i) => (
           <div
             key={i}
@@ -849,26 +871,19 @@ function HostFinished({ players }: { players: Player[] }) {
 
       <h1 className="text-4xl font-extrabold text-amber-900 animate-bounce-in">Fim do Jogo!</h1>
 
-      {/* Podium (only if 3+ players) */}
-      {hasPodium && (
+      {/* Podium (only if 3 distinct rank positions exist) */}
+      {hasDistinctPodiumPositions && (
         <div className="flex items-end justify-center gap-4 mt-8 mb-6" style={{ minHeight: 280 }}>
           {/* 2nd Place */}
           <div className="flex flex-col items-center" style={{ opacity: revealStep >= 2 ? 1 : 0 }}>
             {revealStep >= 2 && (
               <>
                 <div style={{ animation: "podium-name 0.5s ease-out forwards" }}>
-                  <span
-                    className="w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-2xl border-4 border-white mx-auto mb-2"
-                    style={{ backgroundColor: second?.color }}
-                  >
-                    {second?.emoji}
-                  </span>
-                  <p className="font-extrabold text-amber-900 text-lg">{second?.name}</p>
-                  <p className="font-bold text-amber-700">{second?.score} pts</p>
+                  <PodiumAvatars group={secondPlace} size="md" />
                 </div>
                 <div
                   className={`w-28 bg-gradient-to-t ${podiumColors.second} rounded-t-xl border-3 border-amber-800 mt-2 flex items-center justify-center`}
-                  style={{ height: 120, transformOrigin: "bottom", animation: "podium-rise 0.6s ease-out forwards" }}
+                  style={{ height: 120, transformOrigin: "bottom", animation: "podium-rise 0.6s ease-out forwards", minWidth: Math.max(112, secondPlace.length * 70) }}
                 >
                   <span className="text-4xl">🥈</span>
                 </div>
@@ -884,18 +899,11 @@ function HostFinished({ players }: { players: Player[] }) {
                   <span className="text-4xl">👑</span>
                 </div>
                 <div style={{ animation: "podium-name 0.5s ease-out 0.3s both" }}>
-                  <span
-                    className="w-16 h-16 rounded-full flex items-center justify-center text-white font-bold text-3xl border-4 border-yellow-400 mx-auto mb-2"
-                    style={{ backgroundColor: first?.color }}
-                  >
-                    {first?.emoji}
-                  </span>
-                  <p className="font-extrabold text-amber-900 text-xl">{first?.name}</p>
-                  <p className="font-bold text-amber-700 text-lg">{first?.score} pts</p>
+                  <PodiumAvatars group={firstPlace} size="lg" />
                 </div>
                 <div
                   className={`w-32 bg-gradient-to-t ${podiumColors.first} rounded-t-xl border-3 border-amber-800 mt-2 flex items-center justify-center`}
-                  style={{ height: 160, transformOrigin: "bottom", animation: "podium-rise 0.8s ease-out forwards" }}
+                  style={{ height: 160, transformOrigin: "bottom", animation: "podium-rise 0.8s ease-out forwards", minWidth: Math.max(128, firstPlace.length * 70) }}
                 >
                   <span className="text-5xl">🥇</span>
                 </div>
@@ -908,18 +916,11 @@ function HostFinished({ players }: { players: Player[] }) {
             {revealStep >= 1 && (
               <>
                 <div style={{ animation: "podium-name 0.5s ease-out forwards" }}>
-                  <span
-                    className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-xl border-4 border-white mx-auto mb-2"
-                    style={{ backgroundColor: third?.color }}
-                  >
-                    {third?.emoji}
-                  </span>
-                  <p className="font-extrabold text-amber-900">{third?.name}</p>
-                  <p className="font-bold text-amber-700 text-sm">{third?.score} pts</p>
+                  <PodiumAvatars group={thirdPlace} size="sm" />
                 </div>
                 <div
                   className={`w-24 bg-gradient-to-t ${podiumColors.third} rounded-t-xl border-3 border-amber-800 mt-2 flex items-center justify-center`}
-                  style={{ height: 80, transformOrigin: "bottom", animation: "podium-rise 0.5s ease-out forwards" }}
+                  style={{ height: 80, transformOrigin: "bottom", animation: "podium-rise 0.5s ease-out forwards", minWidth: Math.max(96, thirdPlace.length * 70) }}
                 >
                   <span className="text-3xl">🥉</span>
                 </div>
@@ -929,27 +930,27 @@ function HostFinished({ players }: { players: Player[] }) {
         </div>
       )}
 
-      {/* Full leaderboard — shown after podium reveal or immediately if < 3 players */}
-      {((hasPodium && revealStep >= 4) || (!hasPodium && revealStep >= 1)) && (
+      {/* Full leaderboard — shown after podium reveal or immediately if no podium */}
+      {((hasDistinctPodiumPositions && revealStep >= 4) || (!hasDistinctPodiumPositions && revealStep >= 1)) && (
         <div className="retro-card p-8 max-w-lg mx-auto animate-slide-up">
           <h2 className="text-2xl font-bold text-amber-800 mb-6">Classificacao Final</h2>
           <div className="space-y-3">
-            {sorted.map((p, i) => (
+            {ranked.map((p, i) => (
               <div
                 key={p.id}
                 className={`flex items-center justify-between p-4 rounded-xl animate-slide-up ${
-                  i === 0
+                  p.rank === 1
                     ? "bg-yellow-100 border-3 border-yellow-400 scale-105"
-                    : i === 1
+                    : p.rank === 2
                     ? "bg-gray-100 border-2 border-gray-300"
-                    : i === 2
+                    : p.rank === 3
                     ? "bg-orange-50 border-2 border-orange-300"
                     : "bg-amber-50"
                 }`}
                 style={{ animationDelay: `${i * 0.15}s` }}
               >
                 <div className="flex items-center gap-3">
-                  <span className="text-2xl">{medals[i] || `${i + 1}.`}</span>
+                  <span className="text-2xl">{rankLabel(p.rank)}</span>
                   <span
                     className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-lg"
                     style={{ backgroundColor: p.color }}

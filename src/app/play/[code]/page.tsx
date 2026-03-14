@@ -7,6 +7,7 @@ import { useSound } from "../../hooks/useSound";
 import { MuteButton } from "../../components/MuteButton";
 import { ReactionBar } from "../../components/Reactions";
 import type { Player, Answer } from "../../types";
+import { rankPlayers, getPlayerRank, rankLabel } from "../../types";
 
 // --- Countdown Timer Hook ---
 function useCountdown(timeLimit: number | null | undefined, questionStartedAt: string | null | undefined, active: boolean) {
@@ -395,13 +396,19 @@ function PlayerReveal({
 }) {
   const isCorrect = answer?.isCorrect === true;
   const myScore = players.find((p) => p.id === player.id)?.score ?? 0;
-  const sorted = [...players].sort((a, b) => b.score - a.score);
-  const myRank = sorted.findIndex((p) => p.id === player.id) + 1;
-  const leader = sorted[0];
+  const ranked = rankPlayers(players);
+  const myRank = getPlayerRank(players, player.id);
+  const leader = ranked[0];
   const gapToFirst = leader && leader.id !== player.id ? leader.score - myScore : 0;
 
-  const hasSpeedBonus = isCorrect && pointsAwarded != null && basePoints != null && pointsAwarded > basePoints;
-  const speedBonus = hasSpeedBonus ? pointsAwarded - basePoints : 0;
+  // For open-ended questions, pointsAwarded is 0 from the initial submission
+  // (since isCorrect is null until host reviews). Use basePoints as fallback.
+  const effectivePoints = isCorrect && (pointsAwarded == null || pointsAwarded === 0) && basePoints
+    ? basePoints
+    : pointsAwarded;
+
+  const hasSpeedBonus = isCorrect && effectivePoints != null && basePoints != null && effectivePoints > basePoints;
+  const speedBonus = hasSpeedBonus ? effectivePoints - basePoints : 0;
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4">
@@ -421,7 +428,7 @@ function PlayerReveal({
             {isCorrect ? "Correto!" : answer ? "Errado!" : "Nao respondeste"}
           </h2>
 
-          {isCorrect && pointsAwarded != null && (
+          {isCorrect && effectivePoints != null && effectivePoints > 0 && (
             <div className="mt-2">
               {hasSpeedBonus ? (
                 <p className="text-green-600 font-bold">
@@ -429,7 +436,7 @@ function PlayerReveal({
                 </p>
               ) : (
                 <p className="text-green-600 font-bold">
-                  +{pointsAwarded} pt{pointsAwarded !== 1 ? "s" : ""}
+                  +{effectivePoints} pt{effectivePoints !== 1 ? "s" : ""}
                 </p>
               )}
             </div>
@@ -481,7 +488,7 @@ function PlayerReveal({
         <div className="retro-card p-4">
           <p className="text-amber-800 font-bold text-sm mb-2 text-center">Top 5</p>
           <div className="space-y-1">
-            {sorted.slice(0, 5).map((p, i) => (
+            {ranked.slice(0, 5).map((p) => (
               <div
                 key={p.id}
                 className={`flex items-center justify-between px-3 py-1.5 rounded-lg text-sm ${
@@ -489,7 +496,7 @@ function PlayerReveal({
                 }`}
               >
                 <span className="text-amber-800">
-                  {i + 1}. {p.emoji} {p.name}
+                  {p.rank}. {p.emoji} {p.name}
                 </span>
                 <span className="text-amber-700 font-bold">{p.score} pts</span>
               </div>
@@ -503,9 +510,8 @@ function PlayerReveal({
 
 // --- Final Standings ---
 function PlayerFinished({ player, players }: { player: Player; players: Player[] }) {
-  const sorted = [...players].sort((a, b) => b.score - a.score);
-  const myRank = sorted.findIndex((p) => p.id === player.id) + 1;
-  const medals = ["🥇", "🥈", "🥉"];
+  const ranked = rankPlayers(players);
+  const myRank = getPlayerRank(players, player.id);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4">
@@ -524,19 +530,19 @@ function PlayerFinished({ player, players }: { player: Player; players: Player[]
         <div className="retro-card p-4">
           <h3 className="text-amber-800 font-bold text-center mb-3">Classificacao Final</h3>
           <div className="space-y-2">
-            {sorted.map((p, i) => (
+            {ranked.map((p) => (
               <div
                 key={p.id}
                 className={`flex items-center justify-between p-3 rounded-xl ${
                   p.id === player.id
                     ? "bg-amber-200 border-2 border-amber-400"
-                    : i === 0
+                    : p.rank === 1
                     ? "bg-yellow-100 border-2 border-yellow-300"
                     : "bg-amber-50"
                 }`}
               >
                 <div className="flex items-center gap-2">
-                  <span className="text-lg">{medals[i] || `${i + 1}.`}</span>
+                  <span className="text-lg">{rankLabel(p.rank)}</span>
                   <span
                     className="w-7 h-7 rounded-full flex items-center justify-center text-white text-sm font-bold"
                     style={{ backgroundColor: p.color }}
