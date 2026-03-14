@@ -55,12 +55,13 @@ describe("POST /api/quizzes", () => {
     mockPrisma.quiz.create.mockResolvedValue({ id: "test-id-1234" });
   });
 
-  it("creates a quiz with valid data", async () => {
+  it("creates a quiz with valid data and correct structure", async () => {
     const res = await POST(
       makeRequest({
-        title: "My Quiz",
+        title: "  My Quiz  ",
         questions: [
-          { text: "Q1?", type: "multiple-choice", options: ["A", "B"], correctAnswer: "A" },
+          { text: "Q1?", type: "multiple-choice", options: ["A", "B"], correctAnswer: "A", points: 3 },
+          { text: "Q2?", type: "open-ended" },
         ],
       })
     );
@@ -68,6 +69,31 @@ describe("POST /api/quizzes", () => {
     const data = await res.json();
     expect(data.id).toBe("test-id-1234");
     expect(mockPrisma.quiz.create).toHaveBeenCalledOnce();
+
+    const createCall = mockPrisma.quiz.create.mock.calls[0][0];
+    // Title should be trimmed
+    expect(createCall.data.title).toBe("My Quiz");
+    // Questions should be nested creates
+    const qs = createCall.data.questions.create;
+    expect(qs).toHaveLength(2);
+    // MC question preserves options, correctAnswer, points
+    expect(qs[0]).toMatchObject({
+      text: "Q1?",
+      type: "multiple-choice",
+      options: ["A", "B"],
+      correctAnswer: "A",
+      points: 3,
+      sortOrder: 0,
+    });
+    // Open-ended question gets defaults
+    expect(qs[1]).toMatchObject({
+      text: "Q2?",
+      type: "open-ended",
+      options: [],
+      correctAnswer: null,
+      points: 1,
+      sortOrder: 1,
+    });
   });
 
   it("returns 400 if title is missing", async () => {
@@ -89,7 +115,7 @@ describe("POST /api/quizzes", () => {
     expect(res.status).toBe(400);
   });
 
-  it("handles questions with default points and no options/correctAnswer", async () => {
+  it("applies default points, empty options, and null correctAnswer for open-ended questions", async () => {
     const res = await POST(
       makeRequest({
         title: "Defaults Quiz",
@@ -101,5 +127,13 @@ describe("POST /api/quizzes", () => {
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.id).toBe("test-id-1234");
+
+    const createCall = mockPrisma.quiz.create.mock.calls[0][0];
+    const q = createCall.data.questions.create[0];
+    expect(q.points).toBe(1);
+    expect(q.options).toEqual([]);
+    expect(q.correctAnswer).toBeNull();
+    expect(q.timeLimit).toBeNull();
+    expect(q.sortOrder).toBe(0);
   });
 });

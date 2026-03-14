@@ -17,6 +17,7 @@ export default function QuizzesPage() {
   const [deleting, setDeleting] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [creating, setCreating] = useState<string | null>(null);
+  const [cloning, setCloning] = useState<string | null>(null);
 
   const fetchQuizzes = useCallback(async () => {
     try {
@@ -60,6 +61,18 @@ export default function QuizzesPage() {
     } finally {
       setDeleting(null);
       setConfirmDelete(null);
+    }
+  }
+
+  async function handleClone(quizId: string) {
+    setCloning(quizId);
+    try {
+      const res = await fetch(`/api/quizzes/${quizId}/clone`, { method: "POST" });
+      if (res.ok) {
+        await fetchQuizzes();
+      }
+    } finally {
+      setCloning(null);
     }
   }
 
@@ -143,6 +156,13 @@ export default function QuizzesPage() {
                     className="retro-button retro-button-secondary text-sm !py-1.5 !px-3"
                   >
                     Editar
+                  </button>
+                  <button
+                    onClick={() => handleClone(quiz.id)}
+                    disabled={cloning === quiz.id}
+                    className="retro-button retro-button-secondary text-sm !py-1.5 !px-3"
+                  >
+                    {cloning === quiz.id ? "A copiar..." : "Duplicar"}
                   </button>
                   {confirmDelete === quiz.id ? (
                     <div className="flex gap-1">
