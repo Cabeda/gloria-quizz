@@ -42,10 +42,10 @@
 - [x] Player final standings
 
 ## Testing & CI
-- [x] Vitest config with v8 coverage (90% thresholds)
-- [x] Unit tests for all API routes (62 tests, 11 files)
+- [x] Vitest config with v8 coverage (95% thresholds)
+- [x] Unit tests for all API routes (114 tests, 14 files)
 - [x] GitHub Actions CI workflow (test + lint)
-- [x] Coverage: 99.32% statements, 93.87% branches, 95% functions, 100% lines
+- [x] Coverage: 99.59% statements, 96.89% branches, 96.87% functions, 100% lines
 
 ## Cleanup
 - [x] Remove old single-player components (GameBoard, PlayerSetup, GameContext, persistence.ts)
@@ -193,3 +193,109 @@ Save and reuse quizzes — saves organizers time for recurring events.
 - [x] "Apagar" button with confirmation dialog (Sim/Nao)
 - [x] `/create` supports `?edit=ID` — loads existing quiz, uses PUT to save
 - [x] Landing page links to "Os Meus Quizzes"
+
+---
+
+## Phase: Production-Ready Quiz Platform
+
+### 1. E2E Tests for Main Game Features
+End-to-end tests using Playwright to validate the full game flow in a real browser.
+
+#### Setup
+- [ ] Install Playwright (`pnpm add -D @playwright/test`)
+- [ ] Create `playwright.config.ts` (baseURL from env, webServer config for `pnpm dev`)
+- [ ] Create `e2e/` directory for test files
+- [ ] Add `pnpm e2e` script to package.json
+- [ ] Add Playwright to CI workflow (GitHub Actions)
+
+#### Core Game Flow Tests
+- [ ] **Quiz creation** — create a quiz with MC + open-ended questions, verify redirect to host
+- [ ] **Quiz library** — create quiz, see it in `/quizzes`, edit it, clone it, delete it
+- [ ] **Lobby** — host sees QR code + room code, player joins via code, player appears on host screen
+- [ ] **MC question flow** — host starts question, player answers MC, host reveals, score updates
+- [ ] **Open-ended flow** — host starts question, player types answer, host marks correct/wrong, score updates
+- [ ] **Timer flow** — question with time limit, countdown visible, answer disabled after expiry
+- [ ] **Full game** — lobby → multiple questions → final leaderboard on both host and player screens
+- [ ] **Player rejoin** — player refreshes page mid-game, session restored from localStorage
+- [ ] **Quiz reset** — host resets game, all players return to lobby, scores cleared
+
+### 2. Raise Unit Test Coverage to 95%
+Current: 99.59% stmts, 96.89% branches, 96.87% funcs, 100% lines. (114 tests, 14 files)
+
+- [x] Raise vitest coverage thresholds from 90% to 95% in `vitest.config.ts`
+- [x] `GET /api/rooms/[code]` — test streak calculation (empty room, consecutive correct, broken streak)
+- [x] `GET /api/rooms/[code]` — test answer fetching during question/reveal phases vs lobby/finished
+- [x] `GET /api/rooms/[code]` — test room not found (404)
+- [x] `GET /api/rooms/[code]` — test null currentQuestionIndex fallback to 0
+- [x] `PATCH /api/rooms/[code]` — test `questionStartedAt` set when `questionOpen: true`
+- [x] `PATCH /api/rooms/[code]` — test `questionStartedAt` NOT set when `questionOpen: false`
+- [x] `PATCH /api/rooms/[code]` — test room not found error handling
+- [x] `PATCH /api/rooms/[code]` — test partial updates (only phase, only questionOpen, etc.)
+- [x] `PATCH /api/rooms/[code]` — test combined updates (phase + questionOpen + currentQuestionIndex)
+- [x] Verify all branches covered in rooms/[code]/route.ts (was 68.96%, now 100%)
+
+### 3. Generic Game Logic (Decouple from "Quem conhece a Graca?")
+Extract game logic so the platform works for any quiz theme, not just this one.
+
+#### Game Engine Extraction
+- [ ] Create `src/app/lib/game-engine.ts` — pure functions for scoring, streaks, ranking (move from route handlers)
+  - `calculateScore(basePoints, timeLimit, timeRemaining, streak)` → number
+  - `calculateStreak(answers: {isCorrect: boolean}[])` → number
+  - `isAnswerCorrect(answer: string, correctAnswer: string, type: QuestionType)` → boolean
+- [ ] Create `src/app/lib/game-config.ts` — configurable game constants
+  - `MAX_PLAYERS` (currently hardcoded 10)
+  - `POLL_INTERVAL_MS` (currently hardcoded 1500)
+  - `STREAK_THRESHOLDS` (currently hardcoded 3→1.5x, 5→2x)
+  - `ROOM_CODE_LENGTH` (currently hardcoded 6)
+  - `AUTO_REVEAL_DELAY_MS` (currently hardcoded 2000)
+- [ ] Unit tests for all game-engine functions (pure functions = easy to test)
+- [ ] Refactor API routes to use game-engine functions instead of inline logic
+- [ ] Refactor `useRoomState` hook to use `POLL_INTERVAL_MS` from config
+
+#### Theme/Branding Extraction
+- [ ] Create `src/app/lib/theme.ts` — game title, description, colors, metadata
+- [ ] Update `layout.tsx` to read title/description from theme config
+- [ ] Update landing page to use theme title instead of hardcoded "Quem conhece a Graca?"
+
+### 4. Internationalization (pt-PT + en)
+~178 hardcoded Portuguese strings across 7 UI files. Use `next-intl` for proper i18n.
+
+#### Setup
+- [ ] Install `next-intl` (`pnpm add next-intl`)
+- [ ] Create `src/i18n/` directory structure:
+  - `src/i18n/request.ts` — locale detection (cookie/header/default)
+  - `src/i18n/routing.ts` — locale routing config
+  - `src/messages/pt-PT.json` — Portuguese translations
+  - `src/messages/en.json` — English translations
+- [ ] Create `src/middleware.ts` — next-intl middleware for locale routing
+- [ ] Update `next.config.ts` with next-intl plugin
+
+#### Translation Keys — Extract from UI files
+- [ ] `src/app/page.tsx` (~8 strings) — landing page
+- [ ] `src/app/create/page.tsx` (~20 strings) — quiz creator
+- [ ] `src/app/quizzes/page.tsx` (~12 strings) — quiz library
+- [ ] `src/app/host/[code]/page.tsx` (~60 strings) — host screen (largest file, 1111 lines)
+- [ ] `src/app/play/[code]/page.tsx` (~40 strings) — player screen
+- [ ] `src/app/components/MuteButton.tsx` (~2 strings) — mute toggle
+- [ ] `src/app/components/Reactions.tsx` (~0, emoji only)
+- [ ] `src/app/layout.tsx` (~2 strings) — metadata
+
+#### Route Structure Migration
+- [ ] Move pages to `src/app/[locale]/` prefix (next-intl App Router pattern)
+- [ ] Add locale switcher component (pt-PT / English toggle)
+- [ ] Default locale: `pt-PT`, fallback: `en`
+
+#### Validation
+- [ ] Verify all pages render correctly in pt-PT (no regressions)
+- [ ] Verify all pages render correctly in en
+- [ ] E2E test: switch locale, verify UI language changes
+- [ ] API error messages remain in English (they're developer-facing, not user-facing)
+
+### Execution Order
+The recommended order to tackle these (each can be a separate PR):
+
+1. **Game engine extraction** (3a) — no UI changes, pure refactor, easy to test
+2. ~~**Unit test coverage to 95%** (2) — fills gaps in rooms/[code] route~~ DONE
+3. **E2E test setup + core flow tests** (1) — validates the app works end-to-end
+4. **i18n setup + translation extraction** (4) — biggest change, touches all UI files
+5. **Theme/branding extraction** (3b) — small, can be done alongside i18n
